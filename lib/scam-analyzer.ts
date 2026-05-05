@@ -366,9 +366,9 @@ export function analyzeMessage(text: string): AnalysisResult {
   // Expanded Pattern matching
   const patterns: { test: (t: string) => boolean; signal: Omit<ScamSignal, 'phrase'>; phraseExtractor: (t: string) => string; dangerPoints: number; warningPoints: number }[] = [
     {
-      test: (t) => /suspend|deactivat|lock|block|terminat|delet|freeze|closure|unauthorized login/i.test(t),
+      test: (t) => /suspend|deactivat|lock|block|terminat|delet|freeze|closure|unauthorized login|disabled|compromised/i.test(t),
       signal: { id: 'account-threat', category: 'Account Threat', label: 'Account Suspension Threat', severity: 'critical', explanation: 'Threatening account suspension creates panic.', tip: 'Check your account through the official app.', icon: 'ShieldAlert' },
-      phraseExtractor: (t) => (t.match(/(account\s+will\s+be\s+\w+|will\s+be\s+suspend|be\s+deactivat|permanently\s+\w+|freeze\s+your\s+account|unauthorized\s+login)/i)?.[0]) || 'account threat',
+      phraseExtractor: (t) => (t.match(/(account\s+will\s+be\s+\w+|will\s+be\s+suspend|be\s+deactivat|permanently\s+\w+|freeze\s+your\s+account|unauthorized\s+login|account\s+is\s+disabled|account\s+compromised)/i)?.[0]) || 'account threat',
       dangerPoints: 15, warningPoints: 5
     },
     {
@@ -408,9 +408,9 @@ export function analyzeMessage(text: string): AnalysisResult {
       dangerPoints: 15, warningPoints: 5
     },
     {
-      test: (t) => /pay now|send money|transfer fee|processing fee|₱|payment required|customs clearance|redelivery fee/i.test(t),
+      test: (t) => /pay now|send money|transfer fee|processing fee|₱|p\d|payment required|customs clearance|redelivery fee|bills|clinic bills|hospital bills|loan application/i.test(t),
       signal: { id: 'payment-pressure', category: 'Payment Pressure', label: 'Payment Demand', severity: 'critical', explanation: 'Demanding immediate payment is a scam tactic.', tip: 'Never send money based on unsolicited messages.', icon: 'CreditCard' },
-      phraseExtractor: (t) => (t.match(/(pay now|send\s+\S+\s+fee|processing fee|transfer fee|payment required|customs clearance|redelivery fee|send\s+₱\d+|₱\d+)/i)?.[0]) || 'payment pressure',
+      phraseExtractor: (t) => (t.match(/(pay now|send\s+\S+\s+fee|processing fee|transfer fee|payment required|customs clearance|redelivery fee|send\s+₱\d+|₱\d+|P\d+|clinic\s+bills|hospital\s+bills|loan\s+application)/i)?.[0]) || 'payment pressure',
       dangerPoints: 18, warningPoints: 5
     },
     {
@@ -420,9 +420,9 @@ export function analyzeMessage(text: string): AnalysisResult {
       dangerPoints: 8, warningPoints: 8
     },
     {
-      test: (t) => /guaranteed.*return|double your money|investment|earn.*daily/i.test(t),
+      test: (t) => /guaranteed.*return|double your money|investment|earn.*daily|rating videos|remote job|recruiter/i.test(t),
       signal: { id: 'too-good-to-be-true', category: 'Unrealistic Promise', label: 'Too Good To Be True', severity: 'high', explanation: 'Promises of easy money or guaranteed returns are classic scam lures.', tip: 'If it sounds too good to be true, it is.', icon: 'TrendingUp' },
-      phraseExtractor: (t) => (t.match(/(guaranteed\s+\w+\s+return|double your money|earn\s+₱\d+\s+(to|daily)|guaranteed)/i)?.[0]) || 'unrealistic promise',
+      phraseExtractor: (t) => (t.match(/(guaranteed\s+\w+\s+return|double your money|earn\s+₱\d+\s+(to|daily)|guaranteed|rating videos|remote job|recruiter)/i)?.[0]) || 'unrealistic promise',
       dangerPoints: 15, warningPoints: 5
     }
   ]

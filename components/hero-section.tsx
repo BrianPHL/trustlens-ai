@@ -14,7 +14,7 @@ export function HeroSection() {
         <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-primary/5 rounded-full blur-3xl" />
       </div>
 
-      <div className="container px-4 md:px-6">
+      <div className="max-w-[1200px] mx-auto px-4 md:px-6">
         <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
           {/* Left Column - Copy & CTAs */}
           <div className="space-y-6">

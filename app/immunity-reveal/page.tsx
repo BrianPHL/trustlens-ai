@@ -6,26 +6,35 @@ import { Shield, CheckCircle, XCircle, Lightbulb } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { HighlightedText } from '@/components/shared/highlighted-text'
-import { SAMPLE_SEGMENTS, SAMPLE_SIGNALS } from '@/lib/scam-analyzer'
+import { type AnalysisResult } from '@/lib/scam-analyzer'
 
 export default function ImmunityRevealPage() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [challenge, setChallenge] = useState<AnalysisResult | null>(null)
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      const stored = sessionStorage.getItem('trustlens-selected')
-      if (stored) {
-        try { setSelectedIds(new Set(JSON.parse(stored))) } catch {}
+      const storedSelected = sessionStorage.getItem('trustlens-selected')
+      if (storedSelected) {
+        try { setSelectedIds(new Set(JSON.parse(storedSelected))) } catch {}
+      }
+      
+      const storedChallenge = sessionStorage.getItem('trustlens-challenge')
+      if (storedChallenge) {
+        try { setChallenge(JSON.parse(storedChallenge)) } catch {}
       }
     }
   }, [])
 
+  const segments = challenge?.segments || []
+  const signals = challenge?.signals || []
+
   const allRedFlagIds = new Set(
-    SAMPLE_SEGMENTS.filter(s => s.isRedFlag && s.signalId).map(s => s.signalId!)
+    segments.filter(s => s.isRedFlag && s.signalId).map(s => s.signalId!)
   )
   const correctIds = new Set([...selectedIds].filter(id => allRedFlagIds.has(id)))
   const missedIds = new Set([...allRedFlagIds].filter(id => !selectedIds.has(id)))
-  const score = Math.round((correctIds.size / allRedFlagIds.size) * 100)
+  const score = allRedFlagIds.size > 0 ? Math.round((correctIds.size / allRedFlagIds.size) * 100) : 100
 
   const getScoreLabel = (s: number) => {
     if (s >= 90) return { label: 'Excellent', color: 'text-emerald-600' }
@@ -36,14 +45,14 @@ export default function ImmunityRevealPage() {
   const scoreInfo = getScoreLabel(score)
 
   // Build breakdown
-  const breakdown = SAMPLE_SIGNALS.map(signal => ({
+  const breakdown = signals.map(signal => ({
     ...signal,
     found: selectedIds.has(signal.id),
     isRedFlag: allRedFlagIds.has(signal.id)
   })).filter(s => s.isRedFlag)
 
   // Tips for missed items
-  const missedSignals = SAMPLE_SIGNALS.filter(s => missedIds.has(s.id))
+  const missedSignals = signals.filter(s => missedIds.has(s.id))
 
   const circumference = 2 * Math.PI * 54
   const offset = circumference - (score / 100) * circumference
@@ -62,15 +71,19 @@ export default function ImmunityRevealPage() {
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 md:px-6 py-8 md:py-12">
-        <div className="grid lg:grid-cols-[1fr_340px] gap-8">
-          <div className="lg:col-span-2 space-y-6">
+      <main className="max-w-[1200px] mx-auto px-4 md:px-6 py-8 md:py-12">
+        <div className="grid lg:grid-cols-[7fr_3fr] gap-8">
+          <div className="space-y-6">
             <h1 className="text-3xl font-bold">Scam Immunity Results</h1>
 
             {/* Message with reveal colors */}
             <div className="space-y-3">
               <h2 className="text-lg font-semibold">Message Analysis</h2>
-              <HighlightedText segments={SAMPLE_SEGMENTS} revealMode correctIds={correctIds} missedIds={missedIds} />
+              {challenge ? (
+                <HighlightedText segments={segments} revealMode correctIds={correctIds} missedIds={missedIds} />
+              ) : (
+                <div className="h-40 bg-muted/30 rounded-xl animate-pulse" />
+              )}
               <div className="flex gap-4 text-xs text-muted-foreground">
                 <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-emerald-200 dark:bg-emerald-800 inline-block" /> Correctly identified</span>
                 <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-red-200 dark:bg-red-800 inline-block" /> Missed red flag</span>

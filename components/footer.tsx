@@ -6,7 +6,7 @@ import { Shield, Github, Twitter } from 'lucide-react'
 export function Footer() {
   return (
     <footer className="border-t border-border bg-card">
-      <div className="container px-4 md:px-6 py-12">
+      <div className="max-w-[1200px] mx-auto px-4 md:px-6 py-12">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
           {/* Brand */}
           <div className="col-span-2 md:col-span-1">

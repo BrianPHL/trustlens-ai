@@ -1,19 +1,30 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Shield, Target, Info } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { HighlightedText } from '@/components/shared/highlighted-text'
-import { SAMPLE_SEGMENTS, SAMPLE_SIGNALS } from '@/lib/scam-analyzer'
+import { getRandomChallenge, analyzeMessage, type AnalysisResult, type Segment, type ScamSignal } from '@/lib/scam-analyzer'
 
 export default function ImmunityModePage() {
   const router = useRouter()
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [challenge, setChallenge] = useState<AnalysisResult | null>(null)
+
+  useEffect(() => {
+    const randomChallenge = getRandomChallenge()
+    const analysis = analyzeMessage(randomChallenge.message)
+    setChallenge(analysis)
+  }, [])
+
+  const segments = challenge?.segments || []
+  const signals = challenge?.signals || []
+
   const redFlagSignalIds = new Set(
-    SAMPLE_SEGMENTS.filter(s => s.isRedFlag && s.signalId).map(s => s.signalId!)
+    segments.filter(s => s.isRedFlag && s.signalId).map(s => s.signalId!)
   )
 
   const handleSegmentClick = (signalId: string) => {
@@ -26,8 +37,9 @@ export default function ImmunityModePage() {
   }
 
   const handleReveal = () => {
-    if (typeof window !== 'undefined') {
+    if (typeof window !== 'undefined' && challenge) {
       sessionStorage.setItem('trustlens-selected', JSON.stringify([...selectedIds]))
+      sessionStorage.setItem('trustlens-challenge', JSON.stringify(challenge))
     }
     router.push('/immunity-reveal')
   }
@@ -55,7 +67,7 @@ export default function ImmunityModePage() {
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 md:px-6 py-8 md:py-12">
+      <main className="max-w-[1200px] mx-auto px-4 md:px-6 py-8 md:py-12">
         {/* Banner */}
         <div className="bg-gradient-to-r from-primary to-indigo-600 rounded-2xl p-6 md:p-8 mb-8 text-white">
           <div className="flex items-center gap-3 mb-2">
@@ -67,10 +79,14 @@ export default function ImmunityModePage() {
           </p>
         </div>
 
-        <div className="grid lg:grid-cols-[1fr_340px] gap-8">
-          <div className="lg:col-span-2 space-y-6">
+        <div className="grid lg:grid-cols-[7fr_3fr] gap-8">
+          <div className="space-y-6">
             <h2 className="text-lg font-semibold">Tap suspicious phrases</h2>
-            <HighlightedText segments={SAMPLE_SEGMENTS} interactive selectedIds={selectedIds} onSegmentClick={handleSegmentClick} />
+            {challenge ? (
+              <HighlightedText segments={segments} interactive selectedIds={selectedIds} onSegmentClick={handleSegmentClick} />
+            ) : (
+              <div className="h-40 bg-muted/30 rounded-xl animate-pulse" />
+            )}
             <p className="text-xs text-muted-foreground flex items-center gap-1">
               <Info className="w-3 h-3" /> Tap or click suspicious phrases, links, or requests in the message above.
             </p>
@@ -78,7 +94,7 @@ export default function ImmunityModePage() {
             {selectedIds.size > 0 && (
               <div className="flex flex-wrap gap-2">
                 {[...selectedIds].map(id => {
-                  const signal = SAMPLE_SIGNALS.find(s => s.id === id)
+                  const signal = signals.find(s => s.id === id)
                   if (!signal) return null;
                   const IconComponent = (require('lucide-react') as any)[signal.icon] || require('lucide-react').AlertTriangle;
                   return (
@@ -100,10 +116,10 @@ export default function ImmunityModePage() {
                 <h3 className="font-semibold mb-4">Progress</h3>
                 <div className="flex justify-between items-baseline">
                   <p className="text-sm text-muted-foreground">Red flags selected</p>
-                  <p className="text-3xl font-bold">{selectedIds.size}<span className="text-lg text-muted-foreground">/{redFlagSignalIds.size}</span></p>
+                  <p className="text-3xl font-bold">{selectedIds.size}<span className="text-lg text-muted-foreground">/{redFlagSignalIds.size > 0 ? redFlagSignalIds.size : '?'}</span></p>
                 </div>
                 <div className="h-2 bg-muted rounded-full overflow-hidden mt-3">
-                  <div className="h-full bg-primary rounded-full transition-all duration-500" style={{ width: `${(selectedIds.size / redFlagSignalIds.size) * 100}%` }} />
+                  <div className="h-full bg-primary rounded-full transition-all duration-500" style={{ width: redFlagSignalIds.size > 0 ? `${(selectedIds.size / redFlagSignalIds.size) * 100}%` : '0%' }} />
                 </div>
                 <p className="text-xs text-muted-foreground mt-3">Select all suspicious parts before revealing the answer to maximize your immunity score.</p>
               </CardContent>

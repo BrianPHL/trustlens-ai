@@ -1,3 +1,5 @@
+'use client'
+
 import { useState, useRef } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -87,7 +89,7 @@ export default function AnalyzePage() {
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 md:px-6 py-8 md:py-12">
+      <main className="max-w-[1200px] mx-auto px-4 md:px-6 py-8 md:py-12">
         {/* Page Title */}
         <div className="mb-8">
           <h1 className="text-3xl md:text-4xl font-bold text-foreground mb-2">Analyze Suspicious Message</h1>
@@ -96,9 +98,9 @@ export default function AnalyzePage() {
           </p>
         </div>
 
-        <div className="grid lg:grid-cols-[1fr_340px] gap-8">
+        <div className="grid lg:grid-cols-[7fr_3fr] gap-8">
           {/* Left Panel — Input */}
-          <div className="lg:col-span-2 space-y-6">
+          <div className="space-y-6">
             {/* Tabs */}
             <div className="flex gap-1 p-1 bg-muted rounded-xl w-fit">
               <button

@@ -7,7 +7,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { EducationTipCard } from '@/components/shared/education-tip-card'
 import { EDUCATION_CONTENT } from '@/lib/scam-analyzer'
 
-export default function EducationPage() {
+export default function HowItWorksPage() {
   return (
     <div className="min-h-screen bg-background">
       <header className="sticky top-0 z-40 w-full border-b border-border/40 bg-background/95 backdrop-blur">
@@ -22,15 +22,15 @@ export default function EducationPage() {
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 md:px-6 py-8 md:py-12">
+      <main className="max-w-[1200px] mx-auto px-4 md:px-6 py-8 md:py-12">
         <div className="mb-8">
           <h1 className="text-3xl md:text-4xl font-bold mb-2">Scam Awareness &amp; Safety Tips</h1>
           <p className="text-lg text-muted-foreground">Learn to recognize common scam patterns and protect yourself from fraud.</p>
         </div>
 
-        <div className="grid lg:grid-cols-[1fr_340px] gap-8">
+        <div className="grid lg:grid-cols-[7fr_3fr] gap-8">
           {/* Education Cards */}
-          <div className="lg:col-span-2 space-y-6">
+          <div className="space-y-6">
             {EDUCATION_CONTENT.map((item) => (
               <EducationTipCard
                 key={item.id}

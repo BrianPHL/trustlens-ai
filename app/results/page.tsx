@@ -17,6 +17,7 @@ import {
   SAMPLE_ANALYSIS,
   type AnalysisResult 
 } from '@/lib/scam-analyzer'
+import { createClient } from '@/lib/supabase/client'
 
 export default function ResultsPage() {
   const [result, setResult] = useState<AnalysisResult>(SAMPLE_ANALYSIS)
@@ -27,12 +28,37 @@ export default function ResultsPage() {
       const stored = sessionStorage.getItem('trustlens-message')
       if (stored) {
         setOriginalMessage(stored)
+        let analysis: AnalysisResult
+        
         // Check if it's the sample message
         if (stored.trim() === SAMPLE_MESSAGE.trim()) {
+          analysis = SAMPLE_ANALYSIS
           setResult(SAMPLE_ANALYSIS)
         } else {
-          setResult(analyzeMessage(stored))
+          analysis = analyzeMessage(stored)
+          setResult(analysis)
         }
+
+        // Save to Supabase if logged in
+        const saveHistory = async () => {
+          const supabase = createClient()
+          const { data: { session } } = await supabase.auth.getSession()
+          
+          if (session?.user && stored.trim() !== SAMPLE_MESSAGE.trim()) {
+            await supabase.from('scan_history').insert({
+              user_id: session.user.id,
+              message_text: stored,
+              risk_level: analysis.riskLevel,
+              risk_score: analysis.riskScore,
+              scam_percentage: analysis.percentages.scam,
+              suspicious_percentage: analysis.percentages.suspicious,
+              safe_percentage: analysis.percentages.safe,
+              signals_detected: analysis.signals
+            })
+          }
+        }
+        
+        saveHistory()
       }
     }
   }, [])
@@ -59,7 +85,7 @@ export default function ResultsPage() {
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 md:px-6 py-8 md:py-12">
+      <main className="max-w-[1200px] mx-auto px-4 md:px-6 py-8 md:py-12">
         {/* Page Title */}
         <div className="mb-8">
           <h1 className="text-3xl md:text-4xl font-bold text-foreground mb-2">Analysis Results</h1>
@@ -68,9 +94,9 @@ export default function ResultsPage() {
           </p>
         </div>
 
-        <div className="grid lg:grid-cols-[1fr_380px] gap-8">
+        <div className="grid lg:grid-cols-[7fr_3fr] gap-8">
           {/* Main Content — Left 2 cols */}
-          <div className="lg:col-span-2 space-y-6">
+          <div className="space-y-6">
             {/* Risk Score Card */}
             <RiskScoreCard 
               score={result.riskScore} 

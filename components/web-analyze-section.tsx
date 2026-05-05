@@ -111,7 +111,7 @@ export function WebAnalyzeSection() {
 
   return (
     <section id="analyze" className="py-16 md:py-24 bg-muted/30">
-      <div className="container px-4 md:px-6">
+      <div className="max-w-[1200px] mx-auto px-4 md:px-6">
         <div className="text-center mb-12">
           <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-4 text-balance">
             Analyze a Message
@@ -121,7 +121,7 @@ export function WebAnalyzeSection() {
           </p>
         </div>
 
-        <div className="grid lg:grid-cols-2 gap-8 max-w-5xl mx-auto">
+        <div className="grid lg:grid-cols-2 gap-8">
           {/* Input Card */}
           <Card className="border-border/50">
             <CardHeader>

@@ -54,9 +54,7 @@ function AppContent() {
       <main className="flex-1">
         <HeroSection />
         <FeaturesGrid />
-        <HowItWorksSection />
         <WebAnalyzeSection />
-        <ScamImmunitySection />
       </main>
       <Footer />
     </div>

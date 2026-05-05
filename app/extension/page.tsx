@@ -35,15 +35,15 @@ export default function ExtensionPage() {
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 md:px-6 py-8 md:py-12">
+      <main className="max-w-[1200px] mx-auto px-4 md:px-6 py-8 md:py-12">
         <div className="mb-8">
           <h1 className="text-3xl md:text-4xl font-bold mb-2">Browser Extension Preview</h1>
           <p className="text-lg text-muted-foreground">Real-time scam detection while browsing email, messages, and social media.</p>
         </div>
 
-        <div className="grid lg:grid-cols-[1fr_360px] gap-8">
+        <div className="grid lg:grid-cols-[7fr_3fr] gap-8">
           {/* Browser Mockup */}
-          <div className="lg:col-span-2">
+          <div className="space-y-6">
             <div className="bg-card border border-border rounded-2xl overflow-hidden shadow-xl">
               {/* Browser Chrome */}
               <div className="bg-muted/80 px-4 py-3 flex items-center gap-3 border-b border-border">
@@ -171,7 +171,7 @@ export default function ExtensionPage() {
             </div>
 
             {/* Feature cards below */}
-            <div className="grid sm:grid-cols-2 gap-4 mt-6">
+            <div className="grid sm:grid-cols-2 gap-4">
               <Card className="border-border/50">
                 <CardContent className="p-5">
                   <div className="flex items-center gap-2 mb-2">

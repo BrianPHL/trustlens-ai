@@ -35,16 +35,7 @@ const features: Feature[] = [
 export function FeaturesGrid() {
   return (
     <section id="product" className="py-16 md:py-24">
-      <div className="container px-4 md:px-6">
-        <div className="text-center mb-12">
-          <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-4 text-balance">
-            Powerful Features for Complete Protection
-          </h2>
-          <p className="text-lg text-muted-foreground max-w-2xl mx-auto text-pretty">
-            Advanced AI technology combined with educational tools to help you stay safe online.
-          </p>
-        </div>
-
+      <div className="max-w-[1200px] mx-auto px-4 md:px-6">
         <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
           {features.map((feature, index) => (
             <Card 

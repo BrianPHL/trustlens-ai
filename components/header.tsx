@@ -1,17 +1,18 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
-import { Shield, Menu, X } from 'lucide-react'
+import { usePathname, useRouter } from 'next/navigation'
+import { Shield, Menu, X, User } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { usePlatform } from '@/hooks/use-platform'
 import { ThemeToggle } from '@/components/theme-toggle'
+import { createClient } from '@/lib/supabase/client'
 
 const navLinks = [
   { href: '/#product', label: 'Product' },
-  { href: '/#how-it-works', label: 'How It Works' },
-  { href: '/education', label: 'Scam Immunity' },
+  { href: '/how-it-works', label: 'How It Works' },
+  { href: '/immunity-mode', label: 'Scam Immunity' },
   { href: '/extension', label: 'Browser Extension' },
 ]
 
@@ -19,6 +20,29 @@ export function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const { isNative } = usePlatform()
   const pathname = usePathname()
+  const router = useRouter()
+  
+  const [user, setUser] = useState<any>(null)
+  const supabase = createClient()
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null)
+    })
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
+        setUser(session?.user ?? null)
+      }
+    )
+
+    return () => subscription.unsubscribe()
+  }, [supabase.auth])
+
+  const handleSignOut = async () => {
+    await supabase.auth.signOut()
+    router.refresh()
+  }
 
   // Don't show header on native mobile app
   if (isNative) return null
@@ -34,34 +58,56 @@ export function Header() {
           <span className="font-semibold text-lg text-foreground">TrustLens AI</span>
         </Link>
 
-        {/* Desktop Navigation */}
-        <nav className="hidden md:flex items-center gap-6">
-          {navLinks.map((link) => (
-            <Link
-              key={link.href}
-              href={link.href}
-              className={`text-sm transition-colors ${
-                pathname === link.href
-                  ? 'text-foreground font-medium'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              {link.label}
-            </Link>
-          ))}
-        </nav>
+        {/* Right Side: Navigation & CTAs */}
+        <div className="hidden md:flex items-center ml-auto gap-8">
+          <nav className="flex items-center gap-6">
+            {navLinks.map((link) => (
+              <Link
+                key={link.href}
+                href={link.href}
+                className={`text-sm transition-colors ${
+                  pathname === link.href
+                    ? 'text-foreground font-medium'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                {link.label}
+              </Link>
+            ))}
+          </nav>
 
-        {/* Desktop CTA & Theme Toggle */}
-        <div className="hidden md:flex items-center gap-2">
-          <ThemeToggle />
-          <Button asChild>
-            <Link href="/analyze">Start Scan</Link>
-          </Button>
+          <div className="flex items-center gap-2 border-l border-border/50 pl-6">
+            <ThemeToggle />
+            
+            {user ? (
+              <div className="flex items-center gap-2">
+                <Button variant="ghost" asChild>
+                  <Link href="/history">History</Link>
+                </Button>
+                <Button variant="outline" onClick={handleSignOut}>
+                  Sign Out
+                </Button>
+              </div>
+            ) : (
+              <Button variant="ghost" asChild>
+                <Link href="/login">Sign In</Link>
+              </Button>
+            )}
+
+            <Button asChild>
+              <Link href="/analyze">Start Scan</Link>
+            </Button>
+          </div>
         </div>
 
         {/* Mobile Menu Button & Theme Toggle */}
         <div className="flex items-center gap-2 md:hidden">
           <ThemeToggle />
+          {user && (
+            <Link href="/history" className="p-2 text-muted-foreground">
+              <User className="w-5 h-5" />
+            </Link>
+          )}
           <Button
             variant="ghost"
             size="icon"
