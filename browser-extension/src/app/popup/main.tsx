@@ -191,6 +191,8 @@ const Popup = () => {
 
   const handleAnalyzeSelection = useCallback(async () => {
     setError(null);
+    setAnalysis(null);
+    setSourceText("");
 
     // Get selected text if we don't have it
     let text = selectedText;
@@ -238,6 +240,8 @@ const Popup = () => {
 
   const handleScanPage = useCallback(async () => {
     setError(null);
+    setAnalysis(null);
+    setSourceText("");
     setState("loading");
 
     try {
@@ -353,24 +357,18 @@ const Popup = () => {
   // ── Derived Data ────────────────────────────────────────────────
 
   const signalItems = useMemo(() => {
-    if (!analysis?.matches?.length || !analysis.categories?.length) return [];
+    if (!analysis?.matches?.length) return [];
 
-    const severityByCategory = new Map<DetectionCategory, DetectionSeverity>();
-
-    for (const match of analysis.matches) {
-      const current = severityByCategory.get(match.category);
-      if (!current || SEVERITY_RANK[match.severity] > SEVERITY_RANK[current]) {
-        severityByCategory.set(match.category, match.severity);
-      }
-    }
-
-    return analysis.categories.map((category) => ({
-      category,
-      severity: severityByCategory.get(category) ?? "low",
-    }));
+    // Return all individual matches, sorted by severity then position
+    return [...analysis.matches].sort((a, b) => {
+      const sevA = SEVERITY_RANK[a.severity];
+      const sevB = SEVERITY_RANK[b.severity];
+      if (sevB !== sevA) return sevB - sevA;
+      return a.startIndex - b.startIndex;
+    });
   }, [analysis]);
 
-  const signalCount = signalItems.length || analysis?.totalSignals || 0;
+  const signalCount = analysis?.totalSignals || 0;
   const riskBadge = analysis ? RISK_BADGE_STYLES[analysis.riskLevel] : null;
   const sourceLabel = useMemo(() => {
     switch (analysisSource) {
@@ -450,28 +448,33 @@ const Popup = () => {
               {signalCount} scam signal{signalCount === 1 ? "" : "s"} detected
             </p>
 
-            <div className="space-y-1.5">
-              {signalItems.map((item) => {
-                const config = CATEGORY_CONFIG[item.category];
+            <div className="space-y-1.5 max-h-[280px] overflow-y-auto pr-1 custom-scrollbar">
+              {signalItems.map((match) => {
+                const config = CATEGORY_CONFIG[match.category];
                 const Icon = config.icon;
 
                 return (
                   <div
-                    key={item.category}
-                    className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-muted/50 border border-border/40"
+                    key={match.id}
+                    className="flex flex-col gap-1.5 px-3 py-2 rounded-lg bg-muted/40 border border-border/40 hover:bg-muted/60 transition-colors"
                   >
-                    <Icon className={cn("h-3.5 w-3.5", config.iconClass)} />
-                    <span className="text-[11px] font-medium text-foreground">
-                      {config.label}
-                    </span>
-                    <span
-                      className={cn(
-                        "ml-auto text-[9px] font-bold uppercase tracking-wide",
-                        SEVERITY_LABEL_STYLES[item.severity],
-                      )}
-                    >
-                      {item.severity}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <Icon className={cn("h-3.5 w-3.5", config.iconClass)} />
+                      <span className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
+                        {config.label}
+                      </span>
+                      <span
+                        className={cn(
+                          "ml-auto text-[9px] font-black uppercase tracking-widest",
+                          SEVERITY_LABEL_STYLES[match.severity],
+                        )}
+                      >
+                        {match.severity}
+                      </span>
+                    </div>
+                    <p className="text-[11.5px] font-medium text-foreground leading-snug border-l-2 border-primary/20 pl-2 py-0.5">
+                      "{match.matchedText}"
+                    </p>
                   </div>
                 );
               })}

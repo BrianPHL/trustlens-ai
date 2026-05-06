@@ -116,22 +116,7 @@ const buildSummary = (
 
 // ── Main Analysis Function ──────────────────────────────────────────
 
-export const analyzeMessage = (text: string): AnalysisResult => {
-  if (!text || !text.trim()) {
-    return {
-      riskLevel: "low",
-      riskScore: 0,
-      totalSignals: 0,
-      categories: [],
-      matches: [],
-      summary: "No text provided for analysis.",
-    };
-  }
-
-  const rawMatches = getRawMatches(text);
-  const deduplicated = deduplicateMatches(rawMatches);
-  const matches = buildDetectionMatches(deduplicated);
-
+export const createAnalysisResult = (matches: DetectionMatch[]): AnalysisResult => {
   // Extract unique categories preserving detection order
   const categorySet = new Set<DetectionCategory>();
   const categories: DetectionCategory[] = [];
@@ -153,6 +138,31 @@ export const analyzeMessage = (text: string): AnalysisResult => {
     matches,
     summary,
   };
+};
+
+export const getDetectionMatches = (text: string): DetectionMatch[] => {
+  const rawMatches = getRawMatches(text);
+  const deduplicated = deduplicateMatches(rawMatches);
+  return buildDetectionMatches(deduplicated);
+};
+
+export const analyzeMessage = (text: string): AnalysisResult => {
+  if (!text || !text.trim()) {
+    return {
+      riskLevel: "low",
+      riskScore: 0,
+      totalSignals: 0,
+      categories: [],
+      matches: [],
+      summary: "No text provided for analysis.",
+    };
+  }
+
+  const rawMatches = getRawMatches(text);
+  const deduplicated = deduplicateMatches(rawMatches);
+  const matches = buildDetectionMatches(deduplicated);
+
+  return createAnalysisResult(matches);
 };
 
 // ── Convenience: get signal matches with positions (for highlighter) ─

@@ -1,9 +1,9 @@
 import { browser } from "wxt/browser";
 import { defineContentScript } from "#imports";
-import { analyzeMessage, getSignalMatches } from "~/lib/analyzeMessage";
+import { analyzeMessage, getDetectionMatches, createAnalysisResult } from "~/lib/analyzeMessage";
 import { MessageType } from "~/lib/messages";
 import { StorageKey, getStorage } from "~/lib/storage";
-import type { AnalysisResult } from "~/lib/types";
+import type { AnalysisResult, DetectionMatch } from "~/lib/types";
 
 // ── Constants ───────────────────────────────────────────────────────
 
@@ -346,7 +346,22 @@ const isEligibleElement = (element: HTMLElement | null) => {
   if (element.isContentEditable) return false;
 
   const style = window.getComputedStyle(element);
-  if (style.display === "none" || style.visibility === "hidden") return false;
+  if (
+    style.display === "none" ||
+    style.visibility === "hidden" ||
+    style.opacity === "0"
+  ) {
+    return false;
+  }
+
+  // Gmail and other SPAs often use aria-hidden for inactive views
+  if (element.closest('[aria-hidden="true"]')) return false;
+
+  // Check for 0 dimensions which often indicates hidden "ghost" elements
+  if (element.offsetWidth === 0 && element.offsetHeight === 0) {
+    // Only skip if it's not a block-level element that might be empty but valid
+    if (style.display !== "inline") return false;
+  }
 
   return true;
 };
@@ -395,20 +410,18 @@ const clearHighlights = () => {
   }
 };
 
-const applyHighlights = (textNode: Text) => {
+const applyHighlights = (textNode: Text, matches: DetectionMatch[]) => {
   const text = textNode.nodeValue;
-  if (!text || text.length < 3) return 0;
+  if (!text || matches.length === 0) return 0;
 
-  const matches = getSignalMatches(text);
-
-  // Sort by start, remove overlaps
-  const sorted = [...matches].sort((a, b) => a.start - b.start);
+  // Sort by start, remove overlaps (though getDetectionMatches already does this)
+  const sorted = [...matches].sort((a, b) => a.startIndex - b.startIndex);
   const nonOverlapping: typeof sorted = [];
   let lastEnd = -1;
   for (const match of sorted) {
-    if (match.start >= lastEnd) {
+    if (match.startIndex >= lastEnd) {
       nonOverlapping.push(match);
-      lastEnd = match.end;
+      lastEnd = match.endIndex;
     }
   }
 
@@ -418,8 +431,8 @@ const applyHighlights = (textNode: Text) => {
   let cursor = 0;
 
   for (const match of nonOverlapping) {
-    if (match.start > cursor) {
-      fragment.append(text.slice(cursor, match.start));
+    if (match.startIndex > cursor) {
+      fragment.append(text.slice(cursor, match.startIndex));
     }
 
     const span = document.createElement("span");
@@ -431,9 +444,9 @@ const applyHighlights = (textNode: Text) => {
     span.dataset.severity = match.severity;
     span.setAttribute("role", "mark");
     span.setAttribute("aria-label", `${match.category}: ${match.explanation}`);
-    span.textContent = text.slice(match.start, match.end);
+    span.textContent = text.slice(match.startIndex, match.endIndex);
     fragment.append(span);
-    cursor = match.end;
+    cursor = match.endIndex;
   }
 
   if (cursor < text.length) {
@@ -465,18 +478,31 @@ const buildSourceText = (nodes: Text[]) => {
 
 // ── Send Analysis to Background ─────────────────────────────────────
 
-const sendAnalysis = (analysis: AnalysisResult, sourceText: string) => {
+const sendAnalysis = (analysis: AnalysisResult | null, sourceText: string) => {
   lastAnalysis = analysis;
 
   void browser.runtime.sendMessage({
     type: MessageType.PAGE_ANALYSIS,
-    payload: {
-      ...analysis,
-      sourceText,
-      highlightEnabled: autoHighlightEnabled,
-      updatedAt: Date.now(),
-    },
+    payload: analysis
+      ? {
+          ...analysis,
+          sourceText,
+          highlightEnabled: autoHighlightEnabled,
+          updatedAt: Date.now(),
+        }
+      : null,
   });
+};
+
+const resetAnalysis = () => {
+  if (scanTimeout) {
+    window.clearTimeout(scanTimeout);
+    scanTimeout = null;
+  }
+  clearHighlights();
+  hideTooltip();
+  updateBadge(0, "low");
+  sendAnalysis(null, "");
 };
 
 // ── Page Scan ───────────────────────────────────────────────────────
@@ -485,14 +511,36 @@ const scanPage = () => {
   if (!document.body) return;
   if (isScanning) return;
 
+  // Cancel any pending scheduled scan since we're doing one now
+  if (scanTimeout) {
+    window.clearTimeout(scanTimeout);
+    scanTimeout = null;
+  }
+
   isScanning = true;
+  lastAnalysis = null;
   clearHighlights();
 
   const nodes = collectTextNodes(document.body);
   const sourceText = buildSourceText(nodes);
 
-  // Skip very short pages
-  if (sourceText.length < MIN_SCAN_TEXT_LENGTH) {
+  // Collect all matches from all nodes
+  const allMatches: DetectionMatch[] = [];
+  let totalHighlighted = 0;
+
+  for (const node of nodes) {
+    const nodeText = node.nodeValue;
+    if (!nodeText) continue;
+
+    const matches = getDetectionMatches(nodeText);
+    if (matches.length > 0) {
+      allMatches.push(...matches);
+      totalHighlighted += applyHighlights(node, matches);
+    }
+  }
+
+  // Skip very short pages if no matches found
+  if (allMatches.length === 0 && sourceText.length < MIN_SCAN_TEXT_LENGTH) {
     const emptyResult: AnalysisResult = {
       riskLevel: "low",
       riskScore: 0,
@@ -507,13 +555,8 @@ const scanPage = () => {
     return;
   }
 
-  const analysis = analyzeMessage(sourceText);
-
-  // Apply highlights to DOM
-  let totalHighlighted = 0;
-  for (const node of nodes) {
-    totalHighlighted += applyHighlights(node);
-  }
+  // Build full analysis from aggregated matches
+  const analysis = createAnalysisResult(allMatches);
 
   updateBadge(totalHighlighted, analysis.riskLevel);
   sendAnalysis(analysis, sourceText);
@@ -612,6 +655,33 @@ const init = async () => {
   if (autoHighlightEnabled) {
     scanPage();
     startObserving();
+  }
+
+  // Handle SPA navigation (URL changes without refresh)
+  const handleNav = () => {
+    resetAnalysis();
+    if (autoHighlightEnabled) scheduleScan();
+  };
+
+  window.addEventListener("popstate", handleNav);
+  window.addEventListener("hashchange", handleNav);
+
+  // Listen for pushState/replaceState by wrapping them
+  const h = history as any;
+  if (!h._trustlens_wrapped) {
+    const originalPushState = history.pushState;
+    const originalReplaceState = history.replaceState;
+
+    history.pushState = function (...args) {
+      originalPushState.apply(this, args);
+      handleNav();
+    };
+
+    history.replaceState = function (...args) {
+      originalReplaceState.apply(this, args);
+      handleNav();
+    };
+    h._trustlens_wrapped = true;
   }
 };
 

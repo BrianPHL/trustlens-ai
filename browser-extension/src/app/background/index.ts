@@ -145,6 +145,13 @@ export default defineBackground(() => {
     analysisByTabId.delete(tabId);
   });
 
+  browser.tabs.onUpdated.addListener((tabId, changeInfo) => {
+    // Clear results when the page starts loading or the URL changes
+    if (changeInfo.status === "loading" || changeInfo.url) {
+      analysisByTabId.delete(tabId);
+    }
+  });
+
   browser.runtime.onMessage.addListener((message, sender) => {
     if (!message || typeof message !== "object") {
       return undefined;
@@ -157,7 +164,11 @@ export default defineBackground(() => {
       case MessageType.PAGE_ANALYSIS: {
         const tabId = sender.tab?.id;
         if (tabId) {
-          analysisByTabId.set(tabId, msg.payload as PageAnalysisPayload);
+          if (msg.payload) {
+            analysisByTabId.set(tabId, msg.payload as PageAnalysisPayload);
+          } else {
+            analysisByTabId.delete(tabId);
+          }
         }
         return undefined;
       }
