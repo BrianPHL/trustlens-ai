@@ -1,6 +1,4 @@
 @import "tailwindcss";
-@import "./animations";
-
 @plugin '@tailwindcss/typography';
 
 @custom-variant dark (&:where(.dark, .dark *));

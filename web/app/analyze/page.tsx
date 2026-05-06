@@ -1,8 +1,8 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { Shield, FileText, Image as ImageIcon, Loader2, Scan, Upload, Info, Camera } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -12,6 +12,7 @@ import { extractTextFromImage } from '@/lib/ocr-engine'
 
 export default function AnalyzePage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [activeTab, setActiveTab] = useState<'paste' | 'upload'>('paste')
   const [message, setMessage] = useState('')
   const [isAnalyzing, setIsAnalyzing] = useState(false)
@@ -20,6 +21,15 @@ export default function AnalyzePage() {
   const [extractedText, setExtractedText] = useState('')
   const [uploadedFile, setUploadedFile] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    const prefill = searchParams.get('text')
+    if (!prefill) return
+    const normalized = prefill.trim()
+    if (!normalized) return
+    setActiveTab('paste')
+    setMessage(current => (current ? current : normalized))
+  }, [searchParams])
 
   const handleAnalyze = async () => {
     const textToAnalyze = activeTab === 'upload' ? extractedText : message
