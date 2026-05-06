@@ -90,8 +90,6 @@ const buildDetectionMatches = (rawMatches: RawMatch[]): DetectionMatch[] => {
   });
 };
 
-// ── Build summary text ──────────────────────────────────────────────
-
 const buildSummary = (
   riskLevel: string,
   categories: DetectionCategory[],
@@ -101,17 +99,13 @@ const buildSummary = (
     return "No scam-like signals detected. This text appears safe based on known patterns.";
   }
 
-  const categoryList = categories.slice(0, 3).join(", ");
+  const explanations: Record<string, string> = {
+    high: `This message exhibits ${totalSignals} distinct scam indicators. It uses a combination of manipulation tactics consistent with phishing attacks. Do NOT interact with it or click any links.`,
+    medium: `This message contains ${totalSignals} suspicious element${totalSignals > 1 ? "s" : ""}. We recommend verifying the sender through official channels before taking any action.`,
+    low: `This message appears relatively safe, but contains ${totalSignals} minor indicator${totalSignals > 1 ? "s" : ""}. Always stay vigilant and verify any unexpected requests.`,
+  };
 
-  if (riskLevel === "high") {
-    return `High risk detected with ${totalSignals} scam signal${totalSignals > 1 ? "s" : ""}. Categories: ${categoryList}. Exercise extreme caution.`;
-  }
-
-  if (riskLevel === "medium") {
-    return `Medium risk detected with ${totalSignals} signal${totalSignals > 1 ? "s" : ""}. Categories: ${categoryList}. Review carefully before proceeding.`;
-  }
-
-  return `Low risk. ${totalSignals} minor signal${totalSignals > 1 ? "s" : ""} detected. Likely safe, but stay alert.`;
+  return explanations[riskLevel] || explanations.low;
 };
 
 // ── Main Analysis Function ──────────────────────────────────────────

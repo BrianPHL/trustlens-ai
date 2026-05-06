@@ -11,7 +11,7 @@ const storage = {
   [StorageKey.AUTO_HIGHLIGHT_ENABLED]: browserStorage.defineItem<boolean>(
     StorageKey.AUTO_HIGHLIGHT_ENABLED,
     {
-      fallback: false,
+      fallback: true,
     },
   ),
 } as const;

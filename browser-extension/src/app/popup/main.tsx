@@ -139,6 +139,7 @@ const Popup = () => {
     "unknown",
   );
   const [error, setError] = useState<string | null>(null);
+  const [showExplanation, setShowExplanation] = useState<boolean>(false);
 
   const { data: autoHighlightEnabled, set: setAutoHighlight } = useStorage(
     StorageKey.AUTO_HIGHLIGHT_ENABLED,
@@ -316,6 +317,10 @@ const Popup = () => {
     });
   }, [analysis, analysisSource, selectedText, sourceText]);
 
+  const handleToggleExplanation = useCallback(() => {
+    setShowExplanation((prev) => !prev);
+  }, []);
+
   // ── Clear Results ───────────────────────────────────────────────
 
   const handleClear = useCallback(() => {
@@ -323,6 +328,7 @@ const Popup = () => {
     setSourceText("");
     setError(null);
     setAnalysisSource("unknown");
+    setShowExplanation(false);
     setState("idle");
 
     void browser.runtime
@@ -479,6 +485,27 @@ const Popup = () => {
                 );
               })}
             </div>
+
+            {/* AI Explanation Section */}
+            {showExplanation && (
+              <div className="mt-3 p-3 rounded-xl bg-primary/5 border border-primary/10 animate-fade-slide-up">
+                <div className="flex items-center gap-1.5 mb-2">
+                  <Sparkles className="h-3 w-3 text-primary" />
+                  <span className="text-[10px] font-bold text-primary uppercase tracking-wider">
+                    TrustLens AI Explanation
+                  </span>
+                </div>
+                <p className="text-[11px] leading-relaxed text-foreground/90 font-medium italic">
+                  "{analysis.summary}"
+                </p>
+                <div className="mt-2.5 pt-2 border-t border-primary/10">
+                  <p className="text-[9px] text-muted-foreground leading-tight">
+                    This analysis is based on detected patterns of {analysis.categories.join(", ").toLowerCase()}. 
+                    {analysis.riskLevel === 'high' ? " We strongly advise against interacting with this content." : " Proceed with caution."}
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Highlight toggle */}
@@ -512,11 +539,14 @@ const Popup = () => {
           <div className="p-3 border-t border-border/60 flex gap-2">
             <Button
               size="sm"
-              variant="outline"
-              className="flex-1 h-7 text-[10px] rounded-lg font-semibold"
-              onClick={handleOpenFullAnalysis}
+              variant={showExplanation ? "secondary" : "outline"}
+              className={cn(
+                "flex-1 h-7 text-[10px] rounded-lg font-semibold transition-all",
+                showExplanation ? "bg-primary/10 border-primary/20 text-primary" : ""
+              )}
+              onClick={handleToggleExplanation}
             >
-              Explain
+              {showExplanation ? "Hide Info" : "Explain"}
             </Button>
             <Button
               size="sm"
