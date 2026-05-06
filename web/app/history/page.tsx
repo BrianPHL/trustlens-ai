@@ -106,7 +106,7 @@ export default function HistoryPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] dark:bg-background">
+    <div className="min-h-screen bg-background text-foreground">
       <header className="sticky top-0 z-40 w-full border-b border-border/40 bg-background/95 backdrop-blur">
         <div className="max-w-7xl mx-auto flex h-16 items-center px-4 md:px-6">
           <Link href="/" className="flex items-center gap-2 text-muted-foreground hover:text-primary transition-colors mr-6">
@@ -138,19 +138,19 @@ export default function HistoryPage() {
 
         {/* --- Stats Overview Cards --- */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
-          <Card className="bg-white dark:bg-muted/20 border-none shadow-sm">
+          <Card className="bg-card dark:bg-muted/20 border-none shadow-sm">
             <CardContent className="p-4 flex items-center gap-4">
               <div className="p-3 bg-blue-100 dark:bg-blue-900/30 rounded-xl"><BarChart3 className="w-5 h-5 text-blue-600" /></div>
               <div><p className="text-xs font-bold text-muted-foreground uppercase">Total Scans</p><p className="text-2xl font-black">{stats.total}</p></div>
             </CardContent>
           </Card>
-          <Card className="bg-white dark:bg-muted/20 border-none shadow-sm">
+          <Card className="bg-card dark:bg-muted/20 border-none shadow-sm">
             <CardContent className="p-4 flex items-center gap-4">
               <div className="p-3 bg-red-100 dark:bg-red-900/30 rounded-xl"><AlertTriangle className="w-5 h-5 text-red-600" /></div>
               <div><p className="text-xs font-bold text-muted-foreground uppercase">Threats Blocked</p><p className="text-2xl font-black">{stats.highRisk}</p></div>
             </CardContent>
           </Card>
-          <Card className="bg-white dark:bg-muted/20 border-none shadow-sm">
+          <Card className="bg-card dark:bg-muted/20 border-none shadow-sm">
             <CardContent className="p-4 flex items-center gap-4">
               <div className="p-3 bg-emerald-100 dark:bg-emerald-900/30 rounded-xl"><CheckCircle2 className="w-5 h-5 text-emerald-600" /></div>
               <div><p className="text-xs font-bold text-muted-foreground uppercase">Safe Messages</p><p className="text-2xl font-black">{stats.safe}</p></div>
@@ -164,7 +164,7 @@ export default function HistoryPage() {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input 
               placeholder="Search history..." 
-              className="pl-10 rounded-xl bg-white border-none shadow-sm"
+              className="pl-10 rounded-xl bg-background border-none shadow-sm"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
@@ -213,11 +213,11 @@ export default function HistoryPage() {
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, scale: 0.95 }}
                   >
-                    <Card className="group overflow-hidden border-none shadow-sm hover:shadow-md transition-all bg-white dark:bg-muted/10">
+                    <Card className="group overflow-hidden border-none shadow-sm hover:shadow-md transition-all bg-card dark:bg-muted/10">
                       <div className={`h-1 w-full ${isHigh ? 'bg-red-500' : isMedium ? 'bg-amber-500' : 'bg-emerald-500'}`} />
                       <CardContent className="p-0">
                         <div className="grid sm:grid-cols-[140px_1fr_auto] gap-4 p-5 items-center">
-                          <div className="flex flex-col items-center justify-center p-3 rounded-2xl bg-slate-50 dark:bg-background border border-slate-100 dark:border-border text-center">
+                          <div className="flex flex-col items-center justify-center p-3 rounded-2xl bg-muted/50 border border-border text-center">
                             <div className={`text-3xl font-black ${isHigh ? 'text-red-600' : isMedium ? 'text-amber-600' : 'text-emerald-600'}`}>
                               {scan.risk_score}
                             </div>
@@ -233,11 +233,11 @@ export default function HistoryPage() {
                           
                           <div className="min-w-0">
                             <div className="text-[11px] text-muted-foreground mb-2 flex items-center gap-3">
-                              <span className="flex items-center gap-1 font-bold text-slate-500"><Clock className="w-3 h-3" /> {new Date(scan.created_at).toLocaleDateString()}</span>
-                              <span className="w-1 h-1 bg-slate-300 rounded-full" />
+                              <span className="flex items-center gap-1 font-bold text-muted-foreground"><Clock className="w-3 h-3" /> {new Date(scan.created_at).toLocaleDateString()}</span>
+                              <span className="w-1 h-1 bg-muted rounded-full" />
                               <span className="font-bold">{scan.signals_detected?.length || 0} Security Signals</span>
                             </div>
-                            <p className="text-sm font-medium text-foreground line-clamp-2 leading-relaxed italic text-slate-700 dark:text-slate-300">
+                            <p className="text-sm font-medium line-clamp-2 leading-relaxed italic text-muted-foreground">
                               "{scan.message_text}"
                             </p>
                           </div>

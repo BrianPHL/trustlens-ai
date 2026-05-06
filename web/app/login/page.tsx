@@ -81,7 +81,7 @@ function FeatureSlider() {
             <h3 className="text-2xl md:text-3xl font-bold text-white mb-4 tracking-tight">
               {features[current].title}
             </h3>
-            <p className="text-slate-400 text-base md:text-lg leading-relaxed font-medium px-4">
+            <p className="text-muted-foreground text-base md:text-lg leading-relaxed font-medium px-4">
               {features[current].description}
             </p>
           </motion.div>
@@ -90,15 +90,15 @@ function FeatureSlider() {
 
       <div className="flex items-center justify-center gap-6 mt-2">
         <button onClick={prev} className="p-2 rounded-full bg-white/5 border border-white/10 hover:bg-white/10 transition-colors">
-          <ChevronLeft className="w-5 h-5 text-slate-400" />
+          <ChevronLeft className="w-5 h-5 text-muted-foreground" />
         </button>
         <div className="flex gap-2">
           {features.map((_, i) => (
-            <div key={i} className={`h-1.5 transition-all duration-300 rounded-full ${i === current ? 'w-8 bg-primary' : 'w-2 bg-slate-800'}`} />
+            <div key={i} className={`h-1.5 transition-all duration-300 rounded-full ${i === current ? 'w-8 bg-primary' : 'w-2 bg-muted'}`} />
           ))}
         </div>
         <button onClick={next} className="p-2 rounded-full bg-white/5 border border-white/10 hover:bg-white/10 transition-colors">
-          <ChevronRight className="w-5 h-5 text-slate-400" />
+          <ChevronRight className="w-5 h-5 text-muted-foreground" />
         </button>
       </div>
     </div>
@@ -107,7 +107,7 @@ function FeatureSlider() {
 
 function SplashScreen({ onStart }: { onStart: () => void }) {
   return (
-    <div className="min-h-screen bg-slate-950 text-white font-sans relative overflow-hidden flex flex-col items-center justify-between py-16 px-6">
+    <div className="min-h-screen bg-background text-foreground font-sans relative overflow-hidden flex flex-col items-center justify-between py-16 px-6">
       <div className="absolute inset-0 z-0 pointer-events-none">
         <div className="absolute top-[-10%] left-[-10%] w-[500px] h-[500px] bg-primary/20 rounded-full blur-[120px]" />
         <div className="absolute bottom-[-10%] right-[-10%] w-[500px] h-[500px] bg-indigo-600/10 rounded-full blur-[120px]" />
@@ -116,12 +116,12 @@ function SplashScreen({ onStart }: { onStart: () => void }) {
       <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="relative z-10 text-center">
         <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 border border-white/10 backdrop-blur-md mb-6">
           <CheckCircle2 className="w-4 h-4 text-primary" />
-          <span className="text-xs font-bold uppercase tracking-widest text-slate-400">Enterprise Grade Security</span>
+          <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Enterprise Grade Security</span>
         </div>
         <h1 className="text-5xl md:text-6xl font-extrabold tracking-tighter leading-none mb-4">
           TrustLens <span className="text-primary">AI</span>
         </h1>
-        <p className="text-slate-500 text-sm md:text-base font-bold uppercase tracking-[0.2em]">Scam Immunity Suite</p>
+        <p className="text-muted-foreground text-sm md:text-base font-bold uppercase tracking-[0.2em]">Scam Immunity Suite</p>
       </motion.div>
 
       <div className="relative z-10 w-full flex-grow flex items-center justify-center">
@@ -137,7 +137,7 @@ function SplashScreen({ onStart }: { onStart: () => void }) {
            Let&apos;s Get Started
           <ArrowRight className="ml-2 w-6 h-6 group-hover:translate-x-1 transition-transform" />
         </Button>
-        <p className="text-center text-slate-600 text-[10px] mt-4 uppercase tracking-[0.2em] font-extrabold italic">
+        <p className="text-center text-muted-foreground text-[10px] mt-4 uppercase tracking-[0.2em] font-extrabold italic">
           Shielding your digital footprint &copy; 2026
         </p>
       </motion.div>
@@ -205,7 +205,7 @@ function AuthForm({ onBack }: { onBack: () => void }) {
   }
 
   return (
-    <div className="min-h-screen w-full flex flex-col md:flex-row bg-white font-sans overflow-x-hidden">
+    <div className="min-h-screen w-full flex flex-col md:flex-row bg-background font-sans overflow-x-hidden">
       <div className="relative w-full md:w-5/12 bg-primary flex flex-col items-center justify-center py-12 md:py-0 md:min-h-screen overflow-hidden shadow-2xl z-20">
         <div className="absolute inset-0">
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-80 h-80 bg-white/10 rounded-full blur-[80px]" />
@@ -219,13 +219,13 @@ function AuthForm({ onBack }: { onBack: () => void }) {
         </motion.div>
       </div>
 
-      <div className="flex-1 flex items-center justify-center p-6 relative z-10 bg-white">
+      <div className="flex-1 flex items-center justify-center p-6 relative z-10 bg-background">
         <div className="w-full max-w-[420px]">
           <AnimatePresence mode="wait" custom={isLogin ? -1 : 1}>
             <motion.div key={isLogin ? 'login' : 'signup'} custom={isLogin ? -1 : 1} variants={variants} initial="enter" animate="center" exit="exit" transition={{ duration: 0.3 }} className="space-y-8">
               <header>
-                <h2 className="text-4xl font-bold text-slate-900 tracking-tight">{isLogin ? 'Welcome Back' : 'Join the Suite'}</h2>
-                <p className="text-slate-500 mt-2 font-medium">{isLogin ? 'Authorize your digital identity.' : 'Start your journey to scam immunity.'}</p>
+                <h2 className="text-4xl font-bold text-foreground tracking-tight">{isLogin ? 'Welcome Back' : 'Join the Suite'}</h2>
+                <p className="text-muted-foreground mt-2 font-medium">{isLogin ? 'Authorize your digital identity.' : 'Start your journey to scam immunity.'}</p>
               </header>
 
               {error && <div className="p-4 bg-red-50 border border-red-100 rounded-2xl text-red-600 text-xs font-bold flex items-center gap-2"><AlertCircle className="w-4 h-4" /> {error}</div>}
@@ -233,25 +233,25 @@ function AuthForm({ onBack }: { onBack: () => void }) {
               <form onSubmit={handleAuth} className="space-y-4">
                 {!isLogin && (
                   <div className="space-y-2">
-                    <label className="text-[10px] text-slate-400 font-extrabold uppercase tracking-widest ml-1">Full Identity Name</label>
-                    <Input placeholder="Full Name" className="h-14 bg-slate-50 border-slate-200 text-slate-900 rounded-2xl focus:border-primary transition-all px-5" value={fullName} onChange={(e) => setFullName(e.target.value)} />
+                    <label className="text-[10px] text-muted-foreground font-extrabold uppercase tracking-widest ml-1">Full Identity Name</label>
+                    <Input placeholder="Full Name" className="h-14 bg-card border-border text-foreground rounded-2xl focus:border-primary transition-all px-5" value={fullName} onChange={(e) => setFullName(e.target.value)} />
                   </div>
                 )}
                 <div className="space-y-2">
-                  <label className="text-[10px] text-slate-400 font-extrabold uppercase tracking-widest ml-1">Email Address</label>
+                  <label className="text-[10px] text-muted-foreground font-extrabold uppercase tracking-widest ml-1">Email Address</label>
                   <div className="relative">
-                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                    <Input type="email" placeholder="name@domain.com" className="h-14 pl-12 bg-slate-50 border-slate-200 text-slate-900 rounded-2xl focus:border-primary transition-all shadow-sm" value={email} onChange={(e) => setEmail(e.target.value)} required />
+                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <Input type="email" placeholder="name@domain.com" className="h-14 pl-12 bg-card border-border text-foreground rounded-2xl focus:border-primary transition-all shadow-sm" value={email} onChange={(e) => setEmail(e.target.value)} required />
                   </div>
                 </div>
                 <div className="space-y-2">
                   <div className="flex justify-between items-center px-1">
-                    <label className="text-[10px] text-slate-400 font-extrabold uppercase tracking-widest">Master Password</label>
+                    <label className="text-[10px] text-muted-foreground font-extrabold uppercase tracking-widest">Master Password</label>
                   </div>
                   <div className="relative">
-                    <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                    <Input type={showPassword ? "text" : "password"} placeholder="••••••••" className="h-14 pl-12 pr-14 bg-slate-50 border-slate-200 text-slate-900 rounded-2xl focus:border-primary transition-all shadow-sm" value={password} onChange={(e) => setPassword(e.target.value)} required />
-                    <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors">
+                    <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <Input type={showPassword ? "text" : "password"} placeholder="••••••••" className="h-14 pl-12 pr-14 bg-card border-border text-foreground rounded-2xl focus:border-primary transition-all shadow-sm" value={password} onChange={(e) => setPassword(e.target.value)} required />
+                    <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors">
                       {showPassword ? <Eye className="w-5 h-5" /> : <EyeOff className="w-5 h-5" />}
                     </button>
                   </div>
@@ -262,13 +262,13 @@ function AuthForm({ onBack }: { onBack: () => void }) {
               </form>
 
               <div className="relative py-2">
-                <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-slate-100" /></div>
-                <div className="relative flex justify-center text-[10px] uppercase"><span className="bg-white px-4 text-slate-400 font-bold tracking-widest">Or continue with</span></div>
+                <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-border" /></div>
+                <div className="relative flex justify-center text-[10px] uppercase"><span className="bg-background px-4 text-muted-foreground font-bold tracking-widest">Or continue with</span></div>
               </div>
 
               <Button 
                 variant="outline" 
-                className="w-full h-14 border-slate-100 bg-white text-slate-600 hover:bg-slate-50 rounded-2xl font-bold shadow-sm" 
+                className="w-full h-14 border-border bg-card text-foreground hover:bg-muted rounded-2xl font-bold shadow-sm" 
                 onClick={handleGoogleLogin} 
                 disabled={loading}
               >
@@ -276,7 +276,7 @@ function AuthForm({ onBack }: { onBack: () => void }) {
               </Button>
 
               <div className="text-center pt-4">
-                <button type="button" onClick={() => setIsLogin(!isLogin)} className="text-sm font-bold text-slate-400 hover:text-primary transition-colors">
+                <button type="button" onClick={() => setIsLogin(!isLogin)} className="text-sm font-bold text-muted-foreground hover:text-primary transition-colors">
                   {isLogin ? <>New here? <span className="text-primary underline underline-offset-4">Create Profile</span></> : <>Existing member? <span className="text-primary underline underline-offset-4">Sign In</span></>}
                 </button>
               </div>
@@ -309,7 +309,7 @@ export default function LoginPage() {
 
   if (!isReady) {
     return (
-      <div className="h-screen w-full bg-slate-950 flex items-center justify-center text-white">
+      <div className="h-screen w-full bg-background flex items-center justify-center text-foreground">
         <Shield className="w-12 h-12 text-primary animate-pulse" />
       </div>
     )
@@ -317,7 +317,7 @@ export default function LoginPage() {
 
   return (
     <Suspense fallback={
-      <div className="h-screen w-full bg-slate-950 flex items-center justify-center text-white">
+      <div className="h-screen w-full bg-background flex items-center justify-center text-foreground">
         <Shield className="w-12 h-12 text-primary animate-pulse" />
       </div>
     }>
