@@ -146,7 +146,7 @@ const contentStyles = `
     font-size: 12px;
     font-weight: 600;
     font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-    cursor: pointer;
+    cursor: default;
     transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
     display: flex;
     align-items: center;
@@ -159,12 +159,6 @@ const contentStyles = `
   #${BADGE_ID}.trustlens-badge-visible {
     opacity: 1;
     transform: translateY(0);
-    pointer-events: auto;
-  }
-
-  #${BADGE_ID}:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
   }
 
   #${BADGE_ID}.trustlens-badge-low {
@@ -212,14 +206,10 @@ const ensureBadge = () => {
   if (badgeElement) return;
   if (!document.body) return;
 
-  const badge = document.createElement("button");
+  const badge = document.createElement("div");
   badge.id = BADGE_ID;
-  badge.type = "button";
   badge.setAttribute(ROOT_ATTR, "true");
   badge.setAttribute("aria-label", "TrustLens AI scan results");
-  badge.addEventListener("click", () => {
-    void browser.runtime.sendMessage({ type: MessageType.OPEN_POPUP });
-  });
   document.body.appendChild(badge);
   badgeElement = badge;
 };
