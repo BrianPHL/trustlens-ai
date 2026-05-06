@@ -2,29 +2,53 @@ import env from "../../../env.config";
 import { defineBackground } from "#imports";
 import { browser } from "wxt/browser";
 import { MessageType } from "~/lib/messages";
-import type { AnalysisResult, PageAnalysisPayload } from "~/lib/types";
+import type {
+  AnalysisResult,
+  PageAnalysisPayload,
+  WebAppTransferPayload,
+} from "~/lib/types";
 
 const analysisByTabId = new Map<number, PageAnalysisPayload>();
-const MAX_ANALYSIS_TEXT = 2000;
+const MAX_TRANSFER_TEXT = 8000;
 
 const getWebAppBaseUrl = () => {
   const base = env.VITE_WEB_APP_URL || "http://localhost:3000";
   return base.endsWith("/") ? base.slice(0, -1) : base;
 };
 
-const buildAnalyzeUrl = (text: string) => {
-  const base = getWebAppBaseUrl();
-  return `${base}/analyze?text=${encodeURIComponent(text)}`;
+type TransferPayloadInput = Partial<WebAppTransferPayload> & { text?: string };
+
+const encodePayload = (payload: WebAppTransferPayload) => {
+  const json = JSON.stringify(payload);
+  const encoded = encodeURIComponent(json);
+  return btoa(encoded);
 };
 
-const openAnalysis = async (text: string) => {
-  const trimmed = text.trim().slice(0, MAX_ANALYSIS_TEXT);
+const buildResultsUrl = (payload: WebAppTransferPayload) => {
+  const base = getWebAppBaseUrl();
+  const encoded = encodePayload(payload);
+  return `${base}/results?payload=${encodeURIComponent(encoded)}`;
+};
 
-  if (!trimmed) {
+const normalizeTransferPayload = (
+  payload: TransferPayloadInput,
+): WebAppTransferPayload => ({
+  ...payload,
+  version: payload.version ?? 1,
+  origin: payload.origin ?? "extension",
+  source: payload.source ?? "unknown",
+  createdAt: payload.createdAt ?? Date.now(),
+  text: (payload.text ?? "").trim().slice(0, MAX_TRANSFER_TEXT),
+});
+
+const openAnalysis = async (payload: TransferPayloadInput) => {
+  const normalized = normalizeTransferPayload(payload);
+
+  if (!normalized.text) {
     return false;
   }
 
-  await browser.tabs.create({ url: buildAnalyzeUrl(trimmed) });
+  await browser.tabs.create({ url: buildResultsUrl(normalized) });
   return true;
 };
 
@@ -108,7 +132,13 @@ export default defineBackground(() => {
       return;
     }
 
-    void openAnalysis(selection);
+    void openAnalysis({
+      version: 1,
+      origin: "extension",
+      text: selection,
+      source: "context-menu",
+      createdAt: Date.now(),
+    });
   });
 
   browser.tabs.onRemoved.addListener((tabId) => {
@@ -166,7 +196,9 @@ export default defineBackground(() => {
       // Open full analysis in web app
       case MessageType.OPEN_FULL_ANALYSIS:
         return openAnalysis(
-          ((msg.payload as { text?: string })?.text ?? ""),
+          (msg as { payload?: TransferPayloadInput }).payload ?? {
+            text: "",
+          },
         );
 
       // Badge click -> open popup

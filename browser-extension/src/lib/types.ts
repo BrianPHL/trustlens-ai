@@ -35,6 +35,21 @@ export type AnalysisResult = {
   readonly summary: string;
 };
 
+export type WebAppTransferSource =
+  | "selection"
+  | "page"
+  | "context-menu"
+  | "unknown";
+
+export type WebAppTransferPayload = {
+  readonly version: number;
+  readonly origin: "extension";
+  readonly text: string;
+  readonly source: WebAppTransferSource;
+  readonly createdAt: number;
+  readonly analysis?: AnalysisResult;
+};
+
 // ── Extension Messages ──────────────────────────────────────────────
 
 export type ExtensionMessage =
@@ -46,7 +61,7 @@ export type ExtensionMessage =
   | { type: "GET_LAST_ANALYSIS" }
   | { type: "GET_PAGE_ANALYSIS" }
   | { type: "PAGE_ANALYSIS"; payload: PageAnalysisPayload }
-  | { type: "OPEN_FULL_ANALYSIS"; payload: { text: string } }
+  | { type: "OPEN_FULL_ANALYSIS"; payload: WebAppTransferPayload }
   | { type: "OPEN_POPUP" };
 
 export type PageAnalysisPayload = AnalysisResult & {

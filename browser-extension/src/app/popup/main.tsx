@@ -23,13 +23,19 @@ import { Card, CardContent } from "~/components/ui/card";
 import { analyzeMessage } from "~/lib/analyzeMessage";
 import { MessageType } from "~/lib/messages";
 import { StorageKey, useStorage } from "~/lib/storage";
-import type { AnalysisResult, DetectionCategory } from "~/lib/types";
+import type {
+  AnalysisResult,
+  DetectionCategory,
+  WebAppTransferPayload,
+  WebAppTransferSource,
+} from "~/lib/types";
 import { cn } from "~/lib/utils";
 import "~/assets/styles/globals.css";
 
 // ── Constants ───────────────────────────────────────────────────────
 
 const MAX_ANALYSIS_TEXT = 2000;
+const MAX_TRANSFER_TEXT = 8000;
 const MAX_PREVIEW_LENGTH = 120;
 
 type PopupState = "idle" | "loading" | "results";
@@ -115,6 +121,9 @@ const Popup = () => {
   const [analysis, setAnalysis] = useState<AnalysisResult | null>(null);
   const [selectedText, setSelectedText] = useState<string>("");
   const [sourceText, setSourceText] = useState<string>("");
+  const [analysisSource, setAnalysisSource] = useState<WebAppTransferSource>(
+    "unknown",
+  );
   const [error, setError] = useState<string | null>(null);
 
   const { data: autoHighlightEnabled, set: setAutoHighlight } = useStorage(
@@ -142,6 +151,7 @@ const Popup = () => {
           if (data.totalSignals > 0) {
             setAnalysis(data);
             setSourceText(data.sourceText ?? "");
+            setAnalysisSource("page");
             setState("results");
           }
         }
@@ -206,6 +216,7 @@ const Popup = () => {
 
     setAnalysis(result);
     setSourceText(trimmed);
+    setAnalysisSource("selection");
     setState("results");
   }, [selectedText]);
 
@@ -222,7 +233,20 @@ const Popup = () => {
 
       if (response?.analysis) {
         setAnalysis(response.analysis);
+        setAnalysisSource("page");
         setState("results");
+
+        try {
+          const pageAnalysis = (await browser.runtime.sendMessage({
+            type: MessageType.GET_PAGE_ANALYSIS,
+          })) as (AnalysisResult & { sourceText?: string }) | null;
+
+          if (pageAnalysis?.sourceText) {
+            setSourceText(pageAnalysis.sourceText);
+          }
+        } catch {
+          // Ignore source text hydration failures
+        }
       } else {
         // Wait briefly then check analysis
         await new Promise((r) => setTimeout(r, 500));
@@ -233,6 +257,7 @@ const Popup = () => {
         if (pageAnalysis) {
           setAnalysis(pageAnalysis);
           setSourceText(pageAnalysis.sourceText ?? "");
+          setAnalysisSource("page");
           setState("results");
         } else {
           setError("Could not scan this page. Try refreshing.");
@@ -248,20 +273,30 @@ const Popup = () => {
   // ── Open Full Analysis in Web App ───────────────────────────────
 
   const handleOpenFullAnalysis = useCallback(async () => {
-    const text = sourceText || selectedText;
-    const trimmed = text.trim().slice(0, MAX_ANALYSIS_TEXT);
+    const baseText =
+      analysisSource === "page" ? sourceText : selectedText || sourceText;
+    const trimmed = baseText.trim().slice(0, MAX_TRANSFER_TEXT);
 
     if (!trimmed) {
       setError("No text available for full analysis.");
       return;
     }
 
+    const payload: WebAppTransferPayload = {
+      version: 1,
+      origin: "extension",
+      text: trimmed,
+      source: analysisSource,
+      createdAt: Date.now(),
+      analysis: analysis ?? undefined,
+    };
+
     setError(null);
     await browser.runtime.sendMessage({
       type: MessageType.OPEN_FULL_ANALYSIS,
-      payload: { text: trimmed },
+      payload,
     });
-  }, [sourceText, selectedText]);
+  }, [analysis, analysisSource, selectedText, sourceText]);
 
   // ── Clear Results ───────────────────────────────────────────────
 
@@ -269,6 +304,7 @@ const Popup = () => {
     setAnalysis(null);
     setSourceText("");
     setError(null);
+    setAnalysisSource("unknown");
     setState("idle");
 
     void browser.runtime.sendMessage({
