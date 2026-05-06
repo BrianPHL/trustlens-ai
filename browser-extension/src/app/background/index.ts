@@ -1,9 +1,10 @@
 import env from "../../../env.config";
 import { defineBackground } from "#imports";
 import { browser } from "wxt/browser";
-import { MessageType, type PageAnalysis } from "~/lib/messages";
+import { MessageType } from "~/lib/messages";
+import type { AnalysisResult, PageAnalysisPayload } from "~/lib/types";
 
-const analysisByTabId = new Map<number, PageAnalysis>();
+const analysisByTabId = new Map<number, PageAnalysisPayload>();
 const MAX_ANALYSIS_TEXT = 2000;
 
 const getWebAppBaseUrl = () => {
@@ -27,32 +28,36 @@ const openAnalysis = async (text: string) => {
   return true;
 };
 
-const getActiveTabId = async () => {
+const getActiveTab = async () => {
   const [tab] = await browser.tabs.query({
     active: true,
     currentWindow: true,
   });
+  return tab ?? null;
+};
 
+const getActiveTabId = async () => {
+  const tab = await getActiveTab();
   return tab?.id ?? null;
 };
 
-const getSelectionFromActiveTab = async () => {
+const sendMessageToActiveTab = async (message: Record<string, unknown>) => {
   const tabId = await getActiveTabId();
-
-  if (!tabId) {
-    return { text: "" };
-  }
+  if (!tabId) return null;
 
   try {
-    const response = await browser.tabs.sendMessage(tabId, {
-      type: MessageType.GET_SELECTION,
-    });
-
-    return response ?? { text: "" };
+    return await browser.tabs.sendMessage(tabId, message);
   } catch (error) {
-    console.warn("Unable to read selection:", error);
-    return { text: "" };
+    console.warn("Failed to send message to tab:", error);
+    return null;
   }
+};
+
+const getSelectionFromActiveTab = async () => {
+  const response = await sendMessageToActiveTab({
+    type: MessageType.GET_SELECTED_TEXT,
+  });
+  return (response as { text?: string } | null) ?? { text: "" };
 };
 
 const openPopup = async () => {
@@ -115,30 +120,64 @@ export default defineBackground(() => {
       return undefined;
     }
 
-    switch (message.type) {
+    const msg = message as Record<string, unknown>;
+
+    switch (msg.type) {
+      // Content script sends analysis results
       case MessageType.PAGE_ANALYSIS: {
         const tabId = sender.tab?.id;
-
         if (tabId) {
-          analysisByTabId.set(tabId, message.payload as PageAnalysis);
+          analysisByTabId.set(tabId, msg.payload as PageAnalysisPayload);
         }
-
         return undefined;
       }
 
+      // Popup requests current tab analysis
       case MessageType.GET_PAGE_ANALYSIS:
         return getActiveTabId().then((tabId) =>
           tabId ? analysisByTabId.get(tabId) ?? null : null,
         );
 
-      case MessageType.OPEN_FULL_ANALYSIS:
-        return openAnalysis(message.payload?.text ?? "");
+      // Popup requests selected text from active tab
+      case MessageType.GET_SELECTED_TEXT:
+        return getSelectionFromActiveTab();
 
+      // Popup tells content script to analyze selected text
+      case MessageType.ANALYZE_SELECTED_TEXT: {
+        const text = (msg as { text?: string }).text ?? "";
+        return sendMessageToActiveTab({
+          type: MessageType.ANALYZE_SELECTED_TEXT,
+          text,
+        }) as Promise<AnalysisResult | null>;
+      }
+
+      // Popup triggers manual page scan
+      case MessageType.SCAN_PAGE:
+        return sendMessageToActiveTab({
+          type: MessageType.SCAN_PAGE,
+        });
+
+      // Popup clears highlights
+      case MessageType.CLEAR_HIGHLIGHTS:
+        return sendMessageToActiveTab({
+          type: MessageType.CLEAR_HIGHLIGHTS,
+        });
+
+      // Open full analysis in web app
+      case MessageType.OPEN_FULL_ANALYSIS:
+        return openAnalysis(
+          ((msg.payload as { text?: string })?.text ?? ""),
+        );
+
+      // Badge click -> open popup
       case MessageType.OPEN_POPUP:
         return openPopup();
 
-      case MessageType.GET_SELECTION:
-        return getSelectionFromActiveTab();
+      // Get last analysis from content script
+      case MessageType.GET_LAST_ANALYSIS:
+        return sendMessageToActiveTab({
+          type: MessageType.GET_LAST_ANALYSIS,
+        });
 
       default:
         return undefined;

@@ -2,16 +2,16 @@ import { useEffect, useState } from "react";
 import { type WxtStorageItem, storage as browserStorage } from "#imports";
 
 export const StorageKey = {
-  HIGHLIGHT_ENABLED: "local:highlight-enabled",
+  AUTO_HIGHLIGHT_ENABLED: "local:auto-highlight-enabled",
 } as const;
 
 export type StorageKey = (typeof StorageKey)[keyof typeof StorageKey];
 
 const storage = {
-  [StorageKey.HIGHLIGHT_ENABLED]: browserStorage.defineItem<boolean>(
-    StorageKey.HIGHLIGHT_ENABLED,
+  [StorageKey.AUTO_HIGHLIGHT_ENABLED]: browserStorage.defineItem<boolean>(
+    StorageKey.AUTO_HIGHLIGHT_ENABLED,
     {
-      fallback: true,
+      fallback: false,
     },
   ),
 } as const;
