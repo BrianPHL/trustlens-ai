@@ -17,16 +17,33 @@ import {
   analyzeMessage, 
   SAMPLE_MESSAGE, 
   SAMPLE_ANALYSIS,
-  type AnalysisResult 
+  type AnalysisResult,
+  type PercentageBreakdown,
+  type ScamSignal,
+  type SignalSeverity,
+  type TextSegment
 } from '@/lib/scam-analyzer'
 import { createClient } from '@/lib/supabase/client'
+
+type ExtensionSeverity = 'low' | 'medium' | 'high'
+
+type ExtensionMatch = {
+  id?: string
+  category: string
+  severity: ExtensionSeverity
+  matchedText: string
+  startIndex: number
+  endIndex: number
+  explanation?: string
+  tip?: string
+}
 
 type ExtensionAnalysis = {
   riskLevel: AnalysisResult['riskLevel']
   riskScore: number
   totalSignals: number
   categories: string[]
-  matches?: unknown[]
+  matches?: ExtensionMatch[]
   summary: string
 }
 
@@ -47,12 +64,31 @@ const isValidRiskLevel = (
 const isExtensionAnalysis = (value: unknown): value is ExtensionAnalysis => {
   if (!value || typeof value !== 'object') return false
   const analysis = value as ExtensionAnalysis
+  const matchesAreValid =
+    !analysis.matches ||
+    (Array.isArray(analysis.matches) &&
+      analysis.matches.every((match) => isExtensionMatch(match)))
   return (
     isValidRiskLevel(analysis.riskLevel) &&
     typeof analysis.riskScore === 'number' &&
     typeof analysis.totalSignals === 'number' &&
     Array.isArray(analysis.categories) &&
-    typeof analysis.summary === 'string'
+    typeof analysis.summary === 'string' &&
+    matchesAreValid
+  )
+}
+
+const isExtensionMatch = (value: unknown): value is ExtensionMatch => {
+  if (!value || typeof value !== 'object') return false
+  const match = value as ExtensionMatch
+  return (
+    typeof match.category === 'string' &&
+    typeof match.matchedText === 'string' &&
+    typeof match.startIndex === 'number' &&
+    typeof match.endIndex === 'number' &&
+    (match.severity === 'low' ||
+      match.severity === 'medium' ||
+      match.severity === 'high')
   )
 }
 
@@ -76,6 +112,199 @@ const parseStoredSummary = (raw: string | null): ExtensionAnalysis | null => {
     return isExtensionAnalysis(parsed) ? parsed : null
   } catch {
     return null
+  }
+}
+
+const EXTENSION_ICON_MAP: Record<string, string> = {
+  'Urgency Manipulation': 'Clock',
+  'Suspicious Link': 'Link2',
+  'Sensitive Information Request': 'KeyRound',
+  'Account Threat': 'ShieldAlert',
+  'Impersonation Cue': 'UserX',
+  'Isolation Tactic': 'VolumeX',
+  'Payment Pressure': 'CreditCard',
+  'Prize/Reward Bait': 'Gift',
+}
+
+const mapExtensionSeverity = (severity: ExtensionSeverity): SignalSeverity =>
+  severity === 'high' ? 'high' : severity === 'medium' ? 'medium' : 'low'
+
+const mapHighlightType = (severity: ExtensionSeverity): TextSegment['type'] =>
+  severity === 'high' ? 'danger' : severity === 'medium' ? 'warning' : 'info'
+
+const normalizeExtensionMatches = (
+  matches: ExtensionMatch[] | undefined,
+): ExtensionMatch[] =>
+  (matches ?? []).filter((match) => isExtensionMatch(match))
+
+const buildExtensionSignals = (matches: ExtensionMatch[]): ScamSignal[] =>
+  matches.map((match, index) => ({
+    id: match.id ?? `ext-${index + 1}`,
+    category: match.category,
+    label: match.matchedText || match.category,
+    phrase: match.matchedText || match.category,
+    severity: mapExtensionSeverity(match.severity),
+    explanation:
+      match.explanation ??
+      `Detected language related to ${match.category.toLowerCase()}.`,
+    tip:
+      match.tip ??
+      'Verify the sender through official channels before taking action.',
+    icon: EXTENSION_ICON_MAP[match.category] ?? 'AlertTriangle',
+  }))
+
+const buildSegmentsFromMatches = (
+  text: string,
+  matches: ExtensionMatch[],
+): TextSegment[] => {
+  if (!text) {
+    return [{ text, type: 'normal', isRedFlag: false }]
+  }
+
+  if (matches.length === 0) {
+    return [{ text, type: 'normal', isRedFlag: false }]
+  }
+
+  const sorted = [...matches]
+    .filter((match) => match.endIndex > match.startIndex)
+    .sort((a, b) => a.startIndex - b.startIndex)
+
+  const segments: TextSegment[] = []
+  let cursor = 0
+
+  sorted.forEach((match, index) => {
+    const start = Math.max(0, Math.min(match.startIndex, text.length))
+    const end = Math.max(start, Math.min(match.endIndex, text.length))
+    if (start < cursor) return
+
+    if (start > cursor) {
+      segments.push({
+        text: text.slice(cursor, start),
+        type: 'normal',
+        isRedFlag: false,
+      })
+    }
+
+    if (end > start) {
+      segments.push({
+        text: text.slice(start, end),
+        type: mapHighlightType(match.severity),
+        signalId: match.id ?? `ext-${index + 1}`,
+        isRedFlag: true,
+      })
+      cursor = end
+    }
+  })
+
+  if (cursor < text.length) {
+    segments.push({
+      text: text.slice(cursor),
+      type: 'normal',
+      isRedFlag: false,
+    })
+  }
+
+  return segments
+}
+
+const buildPercentagesFromScore = (
+  score: number,
+  totalSignals: number,
+): PercentageBreakdown => {
+  if (totalSignals === 0) {
+    return { safe: 92, suspicious: 5, scam: 3 }
+  }
+
+  const normalized = Math.min(100, Math.max(0, Math.round(score)))
+  const scam = Math.min(85, Math.round(normalized * 0.8))
+  const suspicious = Math.min(30, Math.round(normalized * 0.3))
+  const safe = Math.max(0, 100 - scam - suspicious)
+  return { safe, suspicious, scam }
+}
+
+const buildRecommendedActions = (totalSignals: number) =>
+  totalSignals === 0
+    ? [
+        {
+          number: 1,
+          title: 'Stay vigilant',
+          description:
+            'Always verify unexpected requests through official channels.',
+        },
+      ]
+    : [
+        {
+          number: 1,
+          title: 'Do not click any links',
+          description: 'Links may lead to fake pages designed to steal data.',
+        },
+        {
+          number: 2,
+          title: 'Do not share OTP, password, or PIN',
+          description: 'Legitimate services never ask for these via messages.',
+        },
+        {
+          number: 3,
+          title: 'Verify through official channels',
+          description: 'Open the official app or website directly.',
+        },
+        {
+          number: 4,
+          title: 'Report and block the sender',
+          description: 'Help protect others by reporting the scam attempt.',
+        },
+      ]
+
+const buildExplanation = (
+  riskLevel: AnalysisResult['riskLevel'],
+  totalSignals: number,
+  summary: string,
+) => {
+  if (summary) return summary
+  if (totalSignals === 0) {
+    return 'This message appears relatively safe, but always stay vigilant and verify unexpected requests.'
+  }
+  const countLabel = totalSignals === 1 ? 'signal' : 'signals'
+  if (riskLevel === 'high') {
+    return `This message exhibits ${totalSignals} scam ${countLabel}. It uses manipulation patterns common in phishing. Do not interact or click any links.`
+  }
+  if (riskLevel === 'medium') {
+    return `This message contains ${totalSignals} suspicious ${countLabel}. Verify the sender through official channels before acting.`
+  }
+  return `This message shows ${totalSignals} minor ${countLabel}. Stay cautious and verify if unsure.`
+}
+
+const buildAnalysisFromExtension = (
+  text: string,
+  extension: ExtensionAnalysis,
+): AnalysisResult => {
+  const matches = normalizeExtensionMatches(extension.matches)
+  const signals = buildExtensionSignals(matches)
+  const totalSignals =
+    typeof extension.totalSignals === 'number'
+      ? extension.totalSignals
+      : signals.length
+  const riskScore = Math.min(100, Math.max(0, extension.riskScore))
+  const riskLevel = extension.riskLevel
+  const percentages = buildPercentagesFromScore(riskScore, totalSignals)
+  const segments = buildSegmentsFromMatches(text, matches)
+  const explanation = buildExplanation(
+    riskLevel,
+    totalSignals,
+    extension.summary,
+  )
+  const confidence =
+    totalSignals === 0 ? 45 : Math.min(98, 70 + totalSignals * 4)
+
+  return {
+    riskLevel,
+    riskScore,
+    percentages,
+    signals,
+    segments,
+    explanation,
+    recommendedActions: buildRecommendedActions(totalSignals),
+    confidence,
   }
 }
 
@@ -103,7 +332,17 @@ export default function ResultsPage() {
 
     setOriginalMessage(messageText)
 
-    const analysis = isSample ? SAMPLE_ANALYSIS : analyzeMessage(messageText)
+    const extensionAnalysis =
+      payload?.analysis && isExtensionAnalysis(payload.analysis)
+        ? payload.analysis
+        : null
+
+    const analysis = extensionAnalysis
+      ? buildAnalysisFromExtension(messageText, extensionAnalysis)
+      : isSample
+        ? SAMPLE_ANALYSIS
+        : analyzeMessage(messageText)
+
     setResult(analysis)
 
     if (!isSample) {
