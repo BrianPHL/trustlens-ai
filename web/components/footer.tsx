@@ -56,7 +56,7 @@ export function Footer() {
 
         <div className="flex flex-col md:flex-row items-center justify-between gap-4 mt-12 pt-8 border-t border-border">
           <p className="text-sm text-muted-foreground">
-            © 2024 TrustLens AI. All rights reserved.
+            © 2026 TrustLens AI. All rights reserved.
           </p>
           <div className="flex items-center gap-4">
             <Link href="#" className="text-muted-foreground hover:text-foreground transition-colors">
