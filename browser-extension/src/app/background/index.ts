@@ -155,6 +155,23 @@ export default defineBackground(() => {
     }
   });
 
+  // Handle SPA and robust navigation clearing
+  browser.webNavigation.onCommitted.addListener((details) => {
+    if (details.frameId === 0) {
+      analysisByTabId.delete(details.tabId);
+    }
+  });
+
+  browser.webNavigation.onHistoryStateUpdated.addListener((details) => {
+    if (details.frameId === 0) {
+      analysisByTabId.delete(details.tabId);
+    }
+  });
+
+  browser.tabs.onActivated.addListener((activeInfo) => {
+    // Optional: could trigger something here, but GET_PAGE_ANALYSIS already uses active tab
+  });
+
   browser.runtime.onMessage.addListener((message, sender) => {
     if (!message || typeof message !== "object") {
       return undefined;

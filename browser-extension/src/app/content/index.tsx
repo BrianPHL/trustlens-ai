@@ -29,6 +29,11 @@ const SKIP_TAGS = new Set([
   "SVG",
   "CANVAS",
   "IFRAME",
+  "NAV",
+  "HEADER",
+  "FOOTER",
+  "ASIDE",
+  "BUTTON",
 ]);
 
 // ── State ───────────────────────────────────────────────────────────
@@ -357,6 +362,25 @@ const isEligibleElement = (element: HTMLElement | null) => {
   // Gmail and other SPAs often use aria-hidden for inactive views
   if (element.closest('[aria-hidden="true"]')) return false;
 
+  // Skip common UI roles that shouldn't be scanned
+  if (
+    element.closest(
+      '[role="navigation"], [role="banner"], [role="menubar"], [role="toolbar"], [role="search"], [role="complementary"], [role="contentinfo"], [role="tablist"], [role="tab"], [role="menu"], [role="menuitem"], [role="progressbar"], [role="status"], [role="button"]',
+    )
+  ) {
+    return false;
+  }
+
+  // Gmail-specific: skip the inbox grid/list only when viewing a specific email
+  // The presence of [role="article"] or .ii.gt (Gmail message body) indicates a detail view
+  const isInboxElement = element.closest('[role="grid"], [role="listbox"]');
+  if (isInboxElement) {
+    const hasDetailView = !!document.querySelector(
+      'article, [role="article"], .ii.gt, [role="main"] [role="listitem"]',
+    );
+    if (hasDetailView) return false;
+  }
+
   // Check for 0 dimensions which often indicates hidden "ghost" elements
   if (element.offsetWidth === 0 && element.offsetHeight === 0) {
     // Only skip if it's not a block-level element that might be empty but valid
@@ -521,7 +545,14 @@ const scanPage = () => {
   lastAnalysis = null;
   clearHighlights();
 
-  const nodes = collectTextNodes(document.body);
+  // Try to find the main content area to avoid scanning UI sidebars/headers
+  let root = document.body;
+  const mainContent = document.querySelector('[role="main"], main');
+  if (mainContent instanceof HTMLElement) {
+    root = mainContent;
+  }
+
+  const nodes = collectTextNodes(root);
   const sourceText = buildSourceText(nodes);
 
   // Collect all matches from all nodes

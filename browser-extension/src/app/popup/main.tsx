@@ -168,7 +168,13 @@ const Popup = () => {
             setSourceText(data.sourceText ?? "");
             setAnalysisSource("page");
             setState("results");
+          } else {
+            setAnalysis(null);
+            setState("idle");
           }
+        } else {
+          setAnalysis(null);
+          setState("idle");
         }
 
         // Check for selected text
@@ -177,15 +183,30 @@ const Popup = () => {
         })) as { text?: string } | null;
 
         const sel = selResponse?.text?.trim() ?? "";
-        if (sel) {
-          setSelectedText(sel);
-        }
+        setSelectedText(sel);
       } catch {
         // Silently fail — content script might not be injected
       }
     };
 
     void load();
+
+    // Refresh when tab changes or navigates
+    const handleUpdate = (tabId: number, changeInfo: any) => {
+      if (changeInfo.status === "loading" || changeInfo.url) {
+        load();
+      }
+    };
+
+    const handleActivated = () => load();
+
+    browser.tabs.onUpdated.addListener(handleUpdate);
+    browser.tabs.onActivated.addListener(handleActivated);
+
+    return () => {
+      browser.tabs.onUpdated.removeListener(handleUpdate);
+      browser.tabs.onActivated.removeListener(handleActivated);
+    };
   }, []);
 
   // ── Analyze Selected Text ───────────────────────────────────────
@@ -511,7 +532,7 @@ const Popup = () => {
           {/* Highlight toggle */}
           <div className="px-4 py-2.5 border-t border-border/60 flex items-center justify-between">
             <span className="text-[10px] text-muted-foreground font-medium">
-              Highlight phrases
+              Automatic scanning
             </span>
             <button
               type="button"
