@@ -46,20 +46,29 @@ export const computeRiskScore = (
     return { riskScore: 0, riskLevel: "low" };
   }
 
-  // Sum unique category base scores (don't double-count same category)
+  // 1. Determine Risk Level based on Highest Severity
+  let highestSeverity: "low" | "medium" | "high" = "low";
+  for (const match of matches) {
+    if (match.severity === "high") {
+      highestSeverity = "high";
+      break; // Already at max
+    }
+    if (match.severity === "medium") {
+      highestSeverity = "medium";
+    }
+  }
+
+  // 2. Calculate Numeric Score (for visualization)
   const detectedCategories = new Set<DetectionCategory>();
   for (const match of matches) {
     detectedCategories.add(match.category);
   }
 
   let score = 0;
-
-  // Add base score per unique detected category
   for (const category of detectedCategories) {
     score += CATEGORY_BASE_SCORES[category];
   }
 
-  // Apply combo bonuses
   for (const combo of COMBO_RULES) {
     if (
       detectedCategories.has(combo.categories[0]) &&
@@ -69,11 +78,17 @@ export const computeRiskScore = (
     }
   }
 
-  // Cap at 100
   const riskScore = Math.min(100, score);
+
+  // 3. Final Risk Level: Severity takes priority, but high score can also upgrade to Medium/High
+  let riskLevel: RiskLevel = highestSeverity;
+  
+  // If score is very high even with low severity matches (e.g. many medium signals)
+  if (riskLevel === "low" && riskScore >= 30) riskLevel = "medium";
+  if (riskLevel === "medium" && riskScore >= 65) riskLevel = "high";
 
   return {
     riskScore,
-    riskLevel: getRiskLevel(riskScore),
+    riskLevel,
   };
 };

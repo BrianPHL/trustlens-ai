@@ -28,7 +28,7 @@ export const SCAM_RULES: readonly ScamRule[] = [
     severity: "high",
     label: "Account suspension or lockout threat",
     regex:
-      /\b(?:your\s+)?account\s+(?:will\s+be|has\s+been|is|was)\s+(?:suspended|locked|disabled|deactivated|terminated|closed|compromised|restricted)\b/i,
+      /\b(?:your\s+)?(?:account|wallet|profile|access|subscription)\s+(?:will\s+be|has\s+been|is|was)\s+(?:suspended|locked|disabled|deactivated|terminated|closed|compromised|restricted|on\s+hold|invalidated)\b/i,
     baseScore: 20,
   },
   {
@@ -37,7 +37,7 @@ export const SCAM_RULES: readonly ScamRule[] = [
     severity: "high",
     label: "Unauthorized access warning",
     regex:
-      /\b(?:unauthorized\s+(?:access|login|activity|transaction)|suspicious\s+activity\s+(?:detected|on\s+your))\b/i,
+      /\b(?:unauthorized\s+(?:access|login|activity|transaction|charge)|suspicious\s+(?:activity|login|sign-in)\s+(?:detected|on\s+your|from\s+a\s+new\s+device)|someone\s+has\s+your\s+password)\b/i,
     baseScore: 20,
   },
 
@@ -57,7 +57,7 @@ export const SCAM_RULES: readonly ScamRule[] = [
     severity: "medium",
     label: "Urgent action demand",
     regex:
-      /\b(?:act\s+now|urgent\s+action\s+required|respond\s+(?:immediately|within\s+\d+\s*(?:hours?|minutes?|hrs?))|do\s+not\s+delay|limited\s+time\s+(?:only|offer|remaining)|today\s+only|expires?\s+(?:today|soon|in\s+\d+))\b/i,
+      /\b(?:act\s+now|urgent\s+action\s+required|respond\s+(?:immediately|within\s+\d+\s*(?:hours?|minutes?|hrs?))|do\s+not\s+delay|limited\s+time\s+(?:only|offer|remaining)|today\s+only|expires?\s+(?:today|soon|in\s+\d+)|last\s+chance|final\s+notice|action\s+needed\s+immediately)\b/i,
     baseScore: 15,
   },
   {
@@ -98,7 +98,7 @@ export const SCAM_RULES: readonly ScamRule[] = [
     severity: "high",
     label: "Request for sensitive credentials",
     regex:
-      /\b(?:enter|send|share|provide|verify|submit|input|confirm|type|give)\b[^.!?\n]{0,40}\b(?:PIN|OTP|one[\s-]?time\s+password|password|passcode|verification\s+code|security\s+code|CVV|card\s+number|account\s+number|SSN|social\s+security)\b/i,
+      /\b(?:enter|send|share|provide|verify|submit|input|confirm|type|give|reply\s+with|text\s+me|message\s+us)\b[^.!?\n]{0,40}\b(?:PIN|OTP|one[\s-]?time\s+password|password|passcode|verification\s+code|security\s+code|CVV|card\s+number|account\s+number|SSN|social\s+security|backup\s+codes?)\b/i,
     baseScore: 30,
   },
   // Reverse order: credential then action verb
@@ -199,5 +199,50 @@ export const SCAM_RULES: readonly ScamRule[] = [
     regex:
       /\b(?:claim\s+your\s+(?:reward|prize|bonus|gift|winnings)|(?:free\s+cash|special\s+prize|selected\s+winner|lucky\s+winner|receive\s+(?:a\s+)?bonus))\b/i,
     baseScore: 15,
+  },
+  {
+    id: "delivery-scam-issue",
+    category: "Payment Pressure",
+    severity: "high",
+    label: "Fake delivery issue",
+    regex:
+      /\b(?:package|delivery|shipment|parcel|order)\b.{0,20}\b(?:failed|on\s+hold|pending|missed|cannot\s+be\s+delivered|requires\s+payment|unpaid\s+fee|redelivery\s+needed)\b/i,
+    baseScore: 25,
+  },
+  {
+    id: "prize-claim-urgency",
+    category: "Prize/Reward Bait",
+    severity: "high",
+    label: "High-value prize claim",
+    regex:
+      /\b(?:won|claim)\b.{0,30}\b(?:\$|₱|€|£|coins?|cash|reward|tesla|iphone|macbook|gift\s+card)\b.{0,30}\b(?:immediately|asap|now|today)\b/i,
+    baseScore: 25,
+  },
+  {
+    id: "payment-pressure-invoice",
+    category: "Payment Pressure",
+    severity: "high",
+    label: "Fake invoice or renewal notice",
+    regex:
+      /\b(?:invoice|receipt|renewal|subscription|order\s+confirmation)\b.{0,30}\b(?:attached|enclosed|auto-renew|charge|amount\s+due|payment\s+(?:confirmed|received|processed)|successfully\s+charged)\b/i,
+    baseScore: 25,
+  },
+  {
+    id: "account-help-center",
+    category: "Impersonation Cue",
+    severity: "medium",
+    label: "Impersonating help center",
+    regex:
+      /\b(?:help\s+center|security\s+center|resolution\s+center|support\s+portal|case\s+(?:ID|number):?\s*\d+)\b/i,
+    baseScore: 15,
+  },
+  {
+    id: "impersonation-official-notice",
+    category: "Impersonation Cue",
+    severity: "high",
+    label: "Urgent official notification",
+    regex:
+      /\b(?:official\s+notice|final\s+warning|mandatory\s+update|required\s+verification|important\s+security\s+alert)\b/i,
+    baseScore: 25,
   },
 ];

@@ -364,66 +364,72 @@ export function analyzeMessage(text: string): AnalysisResult {
   let dangerScore = 0
   let warningScore = 0
 
-  // Expanded Pattern matching
+  // Expanded Pattern matching with strengthened regexes and strict severity
   const patterns: { test: (t: string) => boolean; signal: Omit<ScamSignal, 'phrase'>; phraseExtractor: (t: string) => string; dangerPoints: number; warningPoints: number }[] = [
     {
-      test: (t) => /suspend|deactivat|lock|block|terminat|delet|freeze|closure|unauthorized login|disabled|compromised/i.test(t),
+      test: (t) => /\b(?:account|wallet|profile|access|subscription)\s+(?:will\s+be|has\s+been|is|was)\s+(?:suspended|locked|disabled|deactivated|terminated|closed|compromised|restricted|on\s+hold|invalidated)\b/i.test(t),
       signal: { id: 'account-threat', category: 'Account Threat', label: 'Account Suspension Threat', severity: 'critical', explanation: 'Threatening account suspension creates panic.', tip: 'Check your account through the official app.', icon: 'ShieldAlert' },
-      phraseExtractor: (t) => (t.match(/(account\s+will\s+be\s+\w+|will\s+be\s+suspend|be\s+deactivat|permanently\s+\w+|freeze\s+your\s+account|unauthorized\s+login|account\s+is\s+disabled|account\s+compromised)/i)?.[0]) || 'account threat',
-      dangerPoints: 15, warningPoints: 5
-    },
-    {
-      test: (t) => /urgent|immediately|right now|act now|today|within \d|expire|hurry|asap/i.test(t),
-      signal: { id: 'urgency', category: 'Urgency Manipulation', label: 'Urgency Pressure', severity: 'high', explanation: 'Creates artificial time pressure.', tip: 'Pause and verify through official channels.', icon: 'Clock' },
-      phraseExtractor: (t) => (t.match(/(urgent|immediately|right now|act now|today|within \d+ \w+|expire\w*|hurry|asap)/i)?.[0]) || 'urgency',
-      dangerPoints: 12, warningPoints: 8
-    },
-    {
-      test: (t) => /bit\.ly|tinyurl|goo\.gl|t\.co|short\.link|click here|click this|link:|login at|portal\.link|\.com\/login/i.test(t),
-      signal: { id: 'suspicious-link', category: 'Suspicious Link', label: 'Shortened/Suspicious URL', severity: 'critical', explanation: 'Shortened URLs hide the real destination.', tip: 'Never click links in unsolicited messages.', icon: 'Link2' },
-      phraseExtractor: (t) => (t.match(/(bit\.ly\/\S+|tinyurl\.com\/\S+|https?:\/\/\S+|\S+\.link|\S+\.com\/\S+|click here|click this)/i)?.[0]) || 'suspicious link',
-      dangerPoints: 18, warningPoints: 5
-    },
-    {
-      test: (t) => /otp|password|pin|credential|cvv|card number|social security|credentials/i.test(t),
-      signal: { id: 'sensitive-info', category: 'Sensitive Information Request', label: 'OTP/Credential Request', severity: 'critical', explanation: 'Requesting sensitive credentials.', tip: 'Never share OTP, password, or PIN.', icon: 'KeyRound' },
-      phraseExtractor: (t) => (t.match(/(enter\s+your\s+otp|share\s+your\s+\w+|your\s+otp|your\s+password|your\s+pin|your\s+cvv|your\s+credentials)/i)?.[0]) || 'credential request',
+      phraseExtractor: (t) => (t.match(/\b(?:account|wallet|profile|access|subscription)\s+(?:will\s+be|has\s+been|is|was)\s+(?:suspended|locked|disabled|deactivated|terminated|closed|compromised|restricted|on\s+hold|invalidated)\b/i)?.[0]) || 'account threat',
       dangerPoints: 20, warningPoints: 5
     },
     {
-      test: (t) => /verify your|confirm your|validate your|authenticate|secure your/i.test(t),
-      signal: { id: 'verify-request', category: 'Verification Request', label: 'Identity Verification Request', severity: 'high', explanation: 'Unsolicited verification requests are common in phishing.', tip: 'Contact the company directly to verify.', icon: 'Zap' },
-      phraseExtractor: (t) => (t.match(/(verify\s+your\s+\w+|confirm\s+your\s+\w+|validate\s+your\s+\w+|authenticate\s+\w*|secure\s+your\s+\w+)/i)?.[0]) || 'verify request',
-      dangerPoints: 12, warningPoints: 6
-    },
-    {
-      test: (t) => /do not share|don't tell|keep this secret|confidential|don't call/i.test(t),
-      signal: { id: 'isolation', category: 'Isolation Tactic', label: 'Isolation Warning', severity: 'high', explanation: 'Preventing you from getting a second opinion.', tip: 'Always share suspicious messages with trusted people.', icon: 'VolumeX' },
-      phraseExtractor: (t) => (t.match(/(do not share|don't tell|keep this secret|confidential|don't call)/i)?.[0]) || 'isolation tactic',
-      dangerPoints: 10, warningPoints: 5
-    },
-    {
-      test: (t) => /won|winner|prize|reward|congratulations|selected|lucky/i.test(t),
-      signal: { id: 'prize-bait', category: 'Prize Bait', label: 'Prize/Reward Bait', severity: 'high', explanation: 'Too-good-to-be-true offers are a scam hallmark.', tip: 'You cannot win a contest you never entered.', icon: 'Gift' },
-      phraseExtractor: (t) => (t.match(/(congratulations|you('ve)?\s+won|winner|you\s+are\s+selected|lucky\s+winner|prize)/i)?.[0]) || 'prize bait',
+      test: (t) => /\b(?:unauthorized\s+(?:access|login|activity|transaction|charge)|suspicious\s+(?:activity|login|sign-in)\s+(?:detected|on\s+your|from\s+a\s+new\s+device)|someone\s+has\s+your\s+password)\b/i.test(t),
+      signal: { id: 'account-unauthorized', category: 'Account Threat', label: 'Unauthorized Activity', severity: 'high', explanation: 'Warnings about unauthorized access are common phishing lures.', tip: 'Verify through official app settings.', icon: 'ShieldAlert' },
+      phraseExtractor: (t) => (t.match(/\b(?:unauthorized\s+(?:access|login|activity|transaction|charge)|suspicious\s+(?:activity|login|sign-in)\s+(?:detected|on\s+your|from\s+a\s+new\s+device)|someone\s+has\s+your\s+password)\b/i)?.[0]) || 'unauthorized access',
       dangerPoints: 15, warningPoints: 5
     },
     {
-      test: (t) => /pay now|send money|transfer fee|processing fee|₱|p\d|payment required|customs clearance|redelivery fee|bills|clinic bills|hospital bills|loan application/i.test(t),
-      signal: { id: 'payment-pressure', category: 'Payment Pressure', label: 'Payment Demand', severity: 'critical', explanation: 'Demanding immediate payment is a scam tactic.', tip: 'Never send money based on unsolicited messages.', icon: 'CreditCard' },
-      phraseExtractor: (t) => (t.match(/(pay now|send\s+\S+\s+fee|processing fee|transfer fee|payment required|customs clearance|redelivery fee|send\s+₱\d+|₱\d+|P\d+|clinic\s+bills|hospital\s+bills|loan\s+application)/i)?.[0]) || 'payment pressure',
+      test: (t) => /\b(?:verify|confirm|validate|update)\b.{0,15}\b(?:immediately|right\s+now|urgently|asap|at\s+once|today|within\s+\d+)\b/i.test(t),
+      signal: { id: 'urgency-high', category: 'Urgency Manipulation', label: 'Urgent Verification', severity: 'critical', explanation: 'Pressuring immediate verification is a major red flag.', tip: 'Legitimate services never demand immediate action via text.', icon: 'Clock' },
+      phraseExtractor: (t) => (t.match(/\b(?:verify|confirm|validate|update)\b.{0,15}\b(?:immediately|right\s+now|urgently|asap|at\s+once|today|within\s+\d+)\b/i)?.[0]) || 'urgent verification',
+      dangerPoints: 15, warningPoints: 5
+    },
+    {
+      test: (t) => /\b(?:act\s+now|urgent\s+action\s+required|do\s+not\s+delay|limited\s+time|today\s+only|expires?\s+(?:today|soon)|last\s+chance|final\s+notice)\b/i.test(t),
+      signal: { id: 'urgency-medium', category: 'Urgency Manipulation', label: 'Time Pressure', severity: 'high', explanation: 'Creates artificial time pressure to cloud judgment.', tip: 'Pause and think before acting.', icon: 'Clock' },
+      phraseExtractor: (t) => (t.match(/\b(?:act\s+now|urgent\s+action\s+required|do\s+not\s+delay|limited\s+time|today\s+only|expires?\s+(?:today|soon)|last\s+chance|final\s+notice)\b/i)?.[0]) || 'urgency',
+      dangerPoints: 12, warningPoints: 8
+    },
+    {
+      test: (t) => /\b(?:bit\.ly|tinyurl\.com|t\.co|goo\.gl|is\.gd|cutt\.ly|short\.link|ow\.ly|rb\.gy|tiny\.cc)\/\S+/i.test(t),
+      signal: { id: 'suspicious-link-short', category: 'Suspicious Link', label: 'Shortened URL', severity: 'critical', explanation: 'Shortened links are frequently used to hide malicious destinations.', tip: 'Never click shortened links in unsolicited messages.', icon: 'Link2' },
+      phraseExtractor: (t) => (t.match(/\b(?:bit\.ly|tinyurl\.com|t\.co|goo\.gl|is\.gd|cutt\.ly|short\.link|ow\.ly|rb\.gy|tiny\.cc)\/\S+/i)?.[0]) || 'shortened link',
+      dangerPoints: 20, warningPoints: 5
+    },
+    {
+      test: (t) => /\b(?:(?:verify|login|confirm|secure|update)\s+(?:at|here|via|through|using)\s*:?\s*(?:https?:\/\/)?\S{4,})/i.test(t),
+      signal: { id: 'suspicious-link-action', category: 'Suspicious Link', label: 'Action-Linked URL', severity: 'critical', explanation: 'Links that prompt for immediate login or verification are dangerous.', tip: 'Always use official apps or bookmarks.', icon: 'Link2' },
+      phraseExtractor: (t) => (t.match(/\b(?:(?:verify|login|confirm|secure|update)\s+(?:at|here|via|through|using)\s*:?\s*(?:https?:\/\/)?\S{4,})/i)?.[0]) || 'login link',
+      dangerPoints: 20, warningPoints: 5
+    },
+    {
+      test: (t) => /\b(?:enter|send|share|provide|verify|submit|input|confirm|type|give|reply\s+with|text\s+me|message\s+us)\b[^.!?\n]{0,40}\b(?:PIN|OTP|one[\s-]?time\s+password|password|passcode|verification\s+code|security\s+code|CVV|card\s+number|account\s+number|SSN|social\s+security|backup\s+codes?)\b/i.test(t),
+      signal: { id: 'sensitive-info-req', category: 'Sensitive Information Request', label: 'Credential Request', severity: 'critical', explanation: 'Asking for OTP, PIN, or passwords is a clear sign of a scam.', tip: 'No legitimate company will ask for these in a message.', icon: 'KeyRound' },
+      phraseExtractor: (t) => (t.match(/\b(?:enter|send|share|provide|verify|submit|input|confirm|type|give|reply\s+with|text\s+me|message\s+us)\b[^.!?\n]{0,40}\b(?:PIN|OTP|one[\s-]?time\s+password|password|passcode|verification\s+code|security\s+code|CVV|card\s+number|account\s+number|SSN|social\s+security|backup\s+codes?)\b/i)?.[0]) || 'credential request',
+      dangerPoints: 25, warningPoints: 5
+    },
+    {
+      test: (t) => /\b(?:do\s+not\s+share|don'?t\s+share|dont\s+share)\s+(?:this|the|with\s+anyone)/i.test(t),
+      signal: { id: 'isolation-share', category: 'Isolation Tactic', label: 'Secrecy Pressure', severity: 'high', explanation: 'Discouraging sharing prevents you from getting help or second opinions.', tip: 'Always share suspicious messages with someone you trust.', icon: 'VolumeX' },
+      phraseExtractor: (t) => (t.match(/\b(?:do\s+not\s+share|don'?t\s+share|dont\s+share)\s+(?:this|the|with\s+anyone)/i)?.[0]) || 'isolation tactic',
+      dangerPoints: 10, warningPoints: 5
+    },
+    {
+      test: (t) => /\b(?:won|claim)\b.{0,30}\b(?:\$|₱|€|£|coins?|cash|reward|tesla|iphone|macbook|gift\s+card)\b.{0,30}\b(?:immediately|asap|now|today)\b/i.test(t),
+      signal: { id: 'prize-urgency', category: 'Prize Bait', label: 'Urgent Prize Claim', severity: 'critical', explanation: 'High-value prizes requiring immediate action are classic scams.', tip: 'If you didn\'t enter a contest, you didn\'t win.', icon: 'Gift' },
+      phraseExtractor: (t) => (t.match(/\b(?:won|claim)\b.{0,30}\b(?:\$|₱|€|£|coins?|cash|reward|tesla|iphone|macbook|gift\s+card)\b.{0,30}\b(?:immediately|asap|now|today)\b/i)?.[0]) || 'prize bait',
       dangerPoints: 18, warningPoints: 5
     },
     {
-      test: (t) => /suspicious activity|unusual activity|unauthorized|security alert|security breach/i.test(t),
-      signal: { id: 'fear-trigger', category: 'Fear Trigger', label: 'Fear-Based Language', severity: 'medium', explanation: 'Fear-based language triggers panic and clouded judgment.', tip: 'If there were real suspicious activity, your bank would use secure channels.', icon: 'AlertOctagon' },
-      phraseExtractor: (t) => (t.match(/(suspicious activity|unusual activity|unauthorized\s+\w+|security alert|security breach)/i)?.[0]) || 'fear trigger',
-      dangerPoints: 8, warningPoints: 8
+      test: (t) => /\b(?:package|delivery|shipment|parcel|order)\b.{0,20}\b(?:failed|on\s+hold|pending|missed|cannot\s+be\s+delivered|requires\s+payment|unpaid\s+fee|redelivery\s+needed)\b/i.test(t),
+      signal: { id: 'delivery-scam', category: 'Payment Pressure', label: 'Delivery Issue Scam', severity: 'high', explanation: 'Fake delivery alerts use minor fees to steal credit card info.', tip: 'Check tracking directly on the official carrier website.', icon: 'CreditCard' },
+      phraseExtractor: (t) => (t.match(/\b(?:package|delivery|shipment|parcel|order)\b.{0,20}\b(?:failed|on\s+hold|pending|missed|cannot\s+be\s+delivered|requires\s+payment|unpaid\s+fee|redelivery\s+needed)\b/i)?.[0]) || 'delivery issue',
+      dangerPoints: 15, warningPoints: 5
     },
     {
-      test: (t) => /guaranteed.*return|double your money|investment|earn.*daily|rating videos|remote job|recruiter/i.test(t),
-      signal: { id: 'too-good-to-be-true', category: 'Unrealistic Promise', label: 'Too Good To Be True', severity: 'high', explanation: 'Promises of easy money or guaranteed returns are classic scam lures.', tip: 'If it sounds too good to be true, it is.', icon: 'TrendingUp' },
-      phraseExtractor: (t) => (t.match(/(guaranteed\s+\w+\s+return|double your money|earn\s+₱\d+\s+(to|daily)|guaranteed|rating videos|remote job|recruiter)/i)?.[0]) || 'unrealistic promise',
+      test: (t) => /\b(?:invoice|receipt|renewal|subscription|order\s+confirmation)\b.{0,30}\b(?:attached|enclosed|auto-renew|charge|amount\s+due|payment\s+(?:confirmed|received|processed)|successfully\s+charged)\b/i.test(t),
+      signal: { id: 'invoice-scam', category: 'Payment Pressure', label: 'Fake Invoice/Renewal', severity: 'high', explanation: 'Fake charges provoke people into clicking to "cancel" or "refund."', tip: 'Check your bank statement directly, not through links.', icon: 'CreditCard' },
+      phraseExtractor: (t) => (t.match(/\b(?:invoice|receipt|renewal|subscription|order\s+confirmation)\b.{0,30}\b(?:attached|enclosed|auto-renew|charge|amount\s+due|payment\s+(?:confirmed|received|processed)|successfully\s+charged)\b/i)?.[0]) || 'fake invoice',
       dangerPoints: 15, warningPoints: 5
     }
   ]
@@ -438,22 +444,41 @@ export function analyzeMessage(text: string): AnalysisResult {
   }
 
   // Calculate percentages
-  const totalRisk = Math.min(dangerScore + warningScore, 100)
-  const scamPct = Math.min(Math.round(dangerScore * 0.8), 85)
+  const scamPct = Math.min(Math.round(dangerScore * 0.8), 95)
   const suspiciousPct = Math.min(Math.round(warningScore * 0.6), 30)
   const safePct = Math.max(100 - scamPct - suspiciousPct, 0)
 
-  // Determine risk level
+  // Determine risk level based on HIGHEST SEVERITY (Strict Enforcement)
+  let highestSeverity: SignalSeverity = 'low'
+  for (const signal of signals) {
+    if (signal.severity === 'critical') {
+      highestSeverity = 'critical'
+      break // Max reached
+    }
+    if (signal.severity === 'high' && highestSeverity !== 'critical') {
+      highestSeverity = 'high'
+    }
+    if (signal.severity === 'medium' && highestSeverity === 'low') {
+      highestSeverity = 'medium'
+    }
+  }
+
   let riskLevel: RiskLevel = 'low'
-  let riskScore = Math.min(totalRisk, 100)
-  if (signals.length === 0) {
-    riskScore = Math.max(5, Math.min(riskScore, 15))
-  } else if (signals.length <= 2 && dangerScore < 20) {
-    riskLevel = 'medium'
-    riskScore = Math.max(35, Math.min(riskScore, 65))
-  } else {
+  let riskScore = Math.min(dangerScore + warningScore, 100)
+
+  // Risk Level mapping: critical/high severity -> high risk
+  if (highestSeverity === 'critical' || highestSeverity === 'high') {
     riskLevel = 'high'
-    riskScore = Math.max(70, Math.min(riskScore, 98))
+    riskScore = Math.max(75, riskScore)
+  } else if (highestSeverity === 'medium' || riskScore >= 35) {
+    riskLevel = 'medium'
+    riskScore = Math.max(40, Math.min(riskScore, 65))
+  } else if (signals.length > 0) {
+    riskLevel = 'low' // Or upgrade to medium if you want to be very strict
+    riskScore = Math.min(30, Math.max(20, riskScore))
+  } else {
+    riskLevel = 'low'
+    riskScore = Math.max(5, Math.min(riskScore, 15))
   }
 
   // Build segments (simple approach — highlight matched phrases)
