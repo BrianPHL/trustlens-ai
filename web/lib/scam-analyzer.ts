@@ -431,6 +431,18 @@ export function analyzeMessage(text: string): AnalysisResult {
       signal: { id: 'invoice-scam', category: 'Payment Pressure', label: 'Fake Invoice/Renewal', severity: 'high', explanation: 'Fake charges provoke people into clicking to "cancel" or "refund."', tip: 'Check your bank statement directly, not through links.', icon: 'CreditCard' },
       phraseExtractor: (t) => (t.match(/\b(?:invoice|receipt|renewal|subscription|order\s+confirmation)\b.{0,30}\b(?:attached|enclosed|auto-renew|charge|amount\s+due|payment\s+(?:confirmed|received|processed)|successfully\s+charged)\b/i)?.[0]) || 'fake invoice',
       dangerPoints: 15, warningPoints: 5
+    },
+    {
+      test: (t) => /\bhttp:\/\/(?!localhost|127\.0\.0\.1)\S+/i.test(t),
+      signal: { id: 'link-http', category: 'Suspicious Link', label: 'Insecure HTTP Link', severity: 'medium', explanation: 'Using insecure HTTP instead of HTTPS makes your data vulnerable to interception.', tip: 'Only enter sensitive data on sites that use HTTPS (padlock icon).', icon: 'Link2' },
+      phraseExtractor: (t) => (t.match(/\bhttp:\/\/(?!localhost|127\.0\.0\.1)\S+/i)?.[0]) || 'http link',
+      dangerPoints: 10, warningPoints: 10
+    },
+    {
+      test: (t) => /\b(?:https?:\/\/)?(?:www\.)?(?:paypa[l1i]\.com|g[o0][o0]gle\.com|sh[o0]pee\.(?:ph|com)|lazad[a4]\.(?:ph|com)|gc[a4]sh\.(?:com|ph|link)|viber-(?:secure|verify)\.com|netflix-billing\.com|microsoft-support\.com)\b/i.test(t),
+      signal: { id: 'link-typo', category: 'Suspicious Link', label: 'Potential Typosquatting', severity: 'high', explanation: 'This link uses a spelling that is very close to a famous brand, a common tactic to trick users.', tip: 'Carefully check every character in the URL before clicking.', icon: 'Link2' },
+      phraseExtractor: (t) => (t.match(/\b(?:https?:\/\/)?(?:www\.)?(?:paypa[l1i]\.com|g[o0][o0]gle\.com|sh[o0]pee\.(?:ph|com)|lazad[a4]\.(?:ph|com)|gc[a4]sh\.(?:com|ph|link)|viber-(?:secure|verify)\.com|netflix-billing\.com|microsoft-support\.com)\b/i)?.[0]) || 'typo link',
+      dangerPoints: 20, warningPoints: 5
     }
   ]
 

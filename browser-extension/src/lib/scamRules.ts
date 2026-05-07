@@ -245,4 +245,21 @@ export const SCAM_RULES: readonly ScamRule[] = [
       /\b(?:official\s+notice|final\s+warning|mandatory\s+update|required\s+verification|important\s+security\s+alert)\b/i,
     baseScore: 25,
   },
+  {
+    id: "suspicious-link-http",
+    category: "Suspicious Link",
+    severity: "medium",
+    label: "Insecure HTTP protocol",
+    regex: /\bhttp:\/\/(?!localhost|127\.0\.0\.1)\S+/i,
+    baseScore: 15,
+  },
+  {
+    id: "suspicious-link-typo",
+    category: "Suspicious Link",
+    severity: "high",
+    label: "Potential typosquatting link",
+    regex:
+      /\b(?:https?:\/\/)?(?:www\.)?(?:paypa[l1i]\.com|g[o0][o0]gle\.com|sh[o0]pee\.(?:ph|com)|lazad[a4]\.(?:ph|com)|gc[a4]sh\.(?:com|ph|link)|viber-(?:secure|verify)\.com|netflix-billing\.com|microsoft-support\.com)\b/i,
+    baseScore: 25,
+  },
 ];
