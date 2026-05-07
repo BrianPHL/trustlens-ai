@@ -10,7 +10,7 @@ import { MobileHomeView } from '@/components/mobile/mobile-home'
 import { MobileScanView } from '@/components/mobile/mobile-scan'
 import { MobileChallengeView } from '@/components/mobile/mobile-challenge'
 import { MobileHistoryView } from '@/components/mobile/mobile-history'
-import { MobileProfileView } from '@/components/mobile/mobile-profile'
+import { MobileProfileView } from '@/components/mobile/mobile-profile' 
 import { MobileUploadView } from '@/components/mobile/mobile-upload'
 import { MobileResultsView } from '@/components/mobile/mobile-results'
 import { MobileScoreView } from '@/components/mobile/mobile-score'
@@ -72,7 +72,8 @@ export function MobileApp() {
       case 'results':
         return <MobileResultsView result={analysisResult} onStartImmunity={() => setActiveTab('challenge')} />
       case 'challenge':
-        return <MobileChallengeView />
+        // ✅ FIX: Passed onNavigate prop to solve the TypeScript error
+        return <MobileChallengeView onNavigate={setActiveTab} />
       case 'score':
         return <MobileScoreView selectedIds={challengeSelections} onTryAgain={() => setActiveTab('challenge')} onGoHome={() => setActiveTab('home')} />
       case 'history':
