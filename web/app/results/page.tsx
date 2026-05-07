@@ -349,7 +349,7 @@ export default function ResultsPage() {
             <Card className="border-border/50 bg-muted/30 hover:bg-muted/50 transition-colors">
               <CardContent className="p-6">
                 <Button asChild variant="link" className="w-full text-foreground h-auto p-0 font-bold">
-                  <Link href="/education">View Full Safety Tips</Link>
+                  <Link href="/how-it-works">View Full Safety Tips</Link>
                 </Button>
               </CardContent>
             </Card>

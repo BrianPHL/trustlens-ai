@@ -275,7 +275,7 @@ export default function ImmunityRevealPage() {
                 <Link href="/immunity-mode">Try Again</Link>
               </Button>
               <Button asChild variant="outline" size="lg" className="flex-1">
-                <Link href="/education">View Full Safety Tips</Link>
+                <Link href="/how-it-works">View Full Safety Tips</Link>
               </Button>
               <Button asChild variant="outline" size="lg" className="flex-1">
                 <Link href="/analyze">Analyze New Message</Link>
