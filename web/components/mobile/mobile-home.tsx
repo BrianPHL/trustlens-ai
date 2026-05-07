@@ -2,237 +2,223 @@
 
 import { useState, useEffect } from 'react'
 import { 
-  FileText, 
-  Upload, 
-  Trophy, 
-  ChevronRight, 
-  ShieldCheck,
-  ShieldAlert,
-  Zap,
-  Lock,
-  Star
+  FileText, Upload, Trophy, ChevronRight, ShieldCheck, 
+  ShieldAlert, Zap, TrendingUp, ArrowUpRight, 
+  Target, Info, Fingerprint, Activity
 } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { hapticFeedback } from '@/lib/capacitor'
-import { usePlatform } from '@/hooks/use-platform'
+import { Progress } from '@/components/ui/progress'
 import { createClient } from '@/lib/supabase/client'
+import { motion } from 'framer-motion'
 
-// --- CONFIGURATION: CENTRALIZED CONTENT ---
-const DASHBOARD_UI = {
-  GUEST: {
-    TITLE: "Overview",
-    BADGE: "Join users staying safe from phishing",
-    HISTORY_LOCKED_TITLE: "Smart History Locked",
-    HISTORY_LOCKED_DESC: "Keep a permanent log of all your scam detections and sync across devices."
-  },
-  ACTIONS: {
-    SCAN: { title: "Paste Message", desc: "Analyze text for scam indicators", color: "bg-blue-500/10", iconColor: "text-blue-600 dark:text-blue-400" },
-    UPLOAD: { title: "Upload Screenshot", desc: "Extract and analyze image text", color: "bg-purple-500/10", iconColor: "text-purple-600 dark:text-purple-400" },
-    CHALLENGE: { title: "Start Challenge", desc: "Test your scam detection skills" }
-  }
-}
+// Using named export to match your import { MobileHomeView }
+export function MobileHomeView({ onNavigate }: { onNavigate: (tab: string) => void }) {
+  const [user, setUser] = useState<any>(null)
+  const [stats, setStats] = useState({ total: 0, blocked: 0, trust: 0 })
+  const [latestThreat, setLatestThreat] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
+  const supabase = createClient()
 
-// --- SUB-COMPONENT: ACCOUNT VIEW ---
-function MobileHomeAccount({ user, stats, handleCardPress }: { user: any; stats: any; handleCardPress: (tab: string) => void }) {
-  const userName = user.user_metadata?.full_name || user.email?.split('@')[0];
+  useEffect(() => {
+    async function fetchData() {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session?.user) {
+        setLoading(false)
+        return
+      }
+      setUser(session.user)
+
+      // Fetch unified data from scan_history
+      const [historyData, profileData] = await Promise.all([
+        supabase.from('scan_history').select('*').eq('user_id', session.user.id).order('created_at', { ascending: false }),
+        supabase.from('profiles').select('trust_score').eq('id', session.user.id).single()
+      ])
+
+      const history = historyData.data || []
+      const blocked = history.filter(s => s.risk_level === 'high').length
+      const latest = history.find(s => s.risk_level === 'high')
+
+      setStats({
+        total: history.length,
+        blocked: blocked,
+        trust: profileData.data?.trust_score || 0
+      })
+      if (latest) setLatestThreat(latest)
+      setLoading(false)
+    }
+    fetchData()
+  }, [])
+
+  if (loading) return <LoadingState />
 
   return (
-    <div className="flex flex-col gap-6 p-5 pb-28 min-h-screen bg-background font-geist">
-      <div className="flex items-center justify-between pt-2">
-        <div className="space-y-1.5">
-          <h1 className="text-3xl font-extrabold tracking-tight text-foreground">
-            Hi, {userName}
+    <motion.div 
+      initial={{ opacity: 0, y: 10 }} 
+      animate={{ opacity: 1, y: 0 }}
+      className="flex flex-col gap-6 p-5 pb-32 bg-[#F8FAFC] dark:bg-background min-h-screen font-geist"
+    >
+      {/* 1. Header Section */}
+      <div className="flex items-center justify-between pt-4">
+        <div className="space-y-1">
+          <p className="text-[10px] font-black text-primary uppercase tracking-[0.2em]">TrustLens AI v3.0</p>
+          <h1 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">
+            Hi, {user?.user_metadata?.full_name?.split(' ')[0] || user?.email?.split('@')[0]}
           </h1>
-          <p className="text-sm font-medium text-muted-foreground flex items-center gap-1.5">
-            <ShieldCheck className="w-4 h-4 text-emerald-500" />
-            24/7 Security Active
-          </p>
         </div>
-        <div className="w-10 h-10 rounded-full bg-muted border border-border flex items-center justify-center overflow-hidden shadow-sm">
-           <span className="text-xs font-bold uppercase">{user.email?.charAt(0)}</span>
-        </div>
+        <button 
+          onClick={() => onNavigate('profile')}
+          className="w-12 h-12 rounded-2xl bg-white dark:bg-slate-800 shadow-sm border border-slate-200 dark:border-slate-700 flex items-center justify-center overflow-hidden active:scale-90 transition-transform"
+        >
+          <Fingerprint className="w-6 h-6 text-primary" />
+        </button>
       </div>
 
-      <div className="space-y-3">
-        <ActionCard 
-          {...DASHBOARD_UI.ACTIONS.SCAN}
-          icon={<FileText className={DASHBOARD_UI.ACTIONS.SCAN.iconColor} />} 
-          onClick={() => handleCardPress('scan')} 
-        />
+      {/* 2. Main Protection Card (Glassmorphism) */}
+      <Card className="relative overflow-hidden border-none bg-slate-900 dark:bg-primary shadow-2xl shadow-primary/25 rounded-[2.5rem]">
+        <div className="absolute top-0 right-0 p-8 opacity-10 rotate-12">
+          <ShieldCheck className="w-32 h-32 text-white" />
+        </div>
+        <CardContent className="p-8 relative z-10">
+          <div className="flex justify-between items-start mb-6">
+            <div>
+              <p className="text-blue-100/60 text-[10px] font-black uppercase tracking-widest mb-1">Safety Accuracy</p>
+              <h2 className="text-6xl font-black text-white">{stats.trust}%</h2>
+            </div>
+            <div className="bg-white/20 backdrop-blur-md p-3 rounded-2xl">
+              <Activity className="w-5 h-5 text-white animate-pulse" />
+            </div>
+          </div>
+          
+          <div className="space-y-3">
+             <div className="flex justify-between text-[10px] font-bold text-white/70 uppercase">
+                <span>Vulnerability</span>
+                <span>Secure</span>
+             </div>
+             <Progress value={stats.trust} className="h-2 bg-white/10" />
+             <p className="text-blue-100/60 text-[11px] font-medium italic">
+               Protecting against {stats.total} scanned vectors.
+             </p>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* 3. Quick Stats Mini-Row */}
+      <div className="grid grid-cols-3 gap-3">
+        <StatItem label="Scans" val={stats.total} />
+        <StatItem label="Threats" val={stats.blocked} color="text-red-500" />
+        <StatItem label="Rank" val="Gold" color="text-amber-500" />
+      </div>
+
+      {/* 4. Action Grid */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between px-1">
+          <h3 className="font-black text-slate-900 dark:text-white text-lg">Defend Now</h3>
+          <Target className="w-4 h-4 text-primary" />
+        </div>
         
+        <div className="grid grid-cols-2 gap-4">
+          <ActionTile 
+            title="Paste Text" 
+            desc="AI Content Scan"
+            icon={<FileText className="w-6 h-6 text-blue-600" />} 
+            color="bg-blue-50" 
+            onClick={() => onNavigate('scan')} 
+          />
+          <ActionTile 
+            title="Scan Image" 
+            desc="OCR Detection"
+            icon={<Upload className="w-6 h-6 text-indigo-600" />} 
+            color="bg-indigo-50" 
+            onClick={() => onNavigate('upload')} 
+          />
+        </div>
+
+        {/* 5. Training Lab / Challenge Call-to-Action */}
         <Card 
-          className="cursor-pointer active:scale-[0.98] transition-all border-0 bg-gradient-to-br from-primary to-primary/80 shadow-lg shadow-primary/25"
-          onClick={() => handleCardPress('challenge')}
+          className="cursor-pointer active:scale-[0.98] transition-all border-none bg-gradient-to-r from-indigo-600 to-violet-600 shadow-xl shadow-indigo-500/20 rounded-3xl"
+          onClick={() => onNavigate('challenge')}
         >
-          <CardContent className="flex items-center gap-4 p-4 text-white font-geist">
-            <div className="flex items-center justify-center w-12 h-12 rounded-2xl bg-white/20 shadow-inner">
+          <CardContent className="flex items-center gap-4 p-5 text-white">
+            <div className="w-12 h-12 rounded-2xl bg-white/20 flex items-center justify-center">
               <Trophy className="w-6 h-6" />
             </div>
             <div className="flex-1">
-              <h3 className="font-bold text-lg leading-tight">{DASHBOARD_UI.ACTIONS.CHALLENGE.title}</h3>
-              <p className="text-sm font-medium opacity-80">{DASHBOARD_UI.ACTIONS.CHALLENGE.desc}</p>
+              <h3 className="font-bold text-sm">Security Training Lab</h3>
+              <p className="text-[11px] opacity-80">Test your skills, earn +10 Trust Score</p>
             </div>
-            <ChevronRight className="w-5 h-5 opacity-80" />
+            <ArrowUpRight className="w-5 h-5 opacity-60" />
           </CardContent>
         </Card>
       </div>
 
-      <div className="grid grid-cols-3 gap-3">
-        <StatCard icon={<FileText className="w-4 h-4" />} value={stats.totalScans} label="Scans" />
-        <StatCard icon={<ShieldAlert className="w-4 h-4 text-destructive" />} value={stats.blocked} label="Blocked" color="destructive" />
-        <StatCard icon={<Zap className="w-4 h-4 text-emerald-500" />} value={`${stats.accuracy}%`} label="Score" color="emerald" />
+      {/* 6. Threat Intel Section */}
+      {latestThreat && (
+        <div className="space-y-3">
+          <div className="flex items-center gap-2 px-1 text-red-600">
+            <ShieldAlert className="w-4 h-4" />
+            <span className="text-[10px] font-black uppercase tracking-widest">Recent Threat Log</span>
+          </div>
+          <Card className="border-none bg-white dark:bg-slate-900 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-800">
+            <CardContent className="p-4 flex items-center justify-between">
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-medium text-slate-600 dark:text-slate-400 truncate italic">
+                  "{latestThreat.message_text}"
+                </p>
+                <div className="flex items-center gap-3 mt-2">
+                  <span className="text-[9px] font-bold bg-red-100 text-red-700 px-2 py-0.5 rounded uppercase">
+                    Risk: {latestThreat.risk_score}
+                  </span>
+                  <span className="text-[9px] font-bold text-slate-400 uppercase flex items-center gap-1">
+                    <Info className="w-3 h-3" /> Reported Today
+                  </span>
+                </div>
+              </div>
+              <ChevronRight className="w-5 h-5 text-slate-300" onClick={() => onNavigate('history')} />
+            </CardContent>
+          </Card>
+        </div>
+      )}
+    </motion.div>
+  )
+}
+
+// --- SUB-COMPONENTS ---
+
+function StatItem({ label, val, color = "text-slate-900 dark:text-white" }: any) {
+  return (
+    <div className="bg-white dark:bg-slate-900 p-4 rounded-[2rem] shadow-sm border border-slate-100 dark:border-slate-800 text-center">
+      <p className={`text-xl font-black ${color}`}>{val}</p>
+      <p className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">{label}</p>
+    </div>
+  )
+}
+
+function ActionTile({ title, desc, icon, color, onClick }: any) {
+  return (
+    <div 
+      onClick={onClick} 
+      className={`${color} dark:bg-slate-900 p-5 rounded-[2.5rem] flex flex-col gap-4 active:scale-95 transition-all shadow-sm border border-transparent dark:border-slate-800`}
+    >
+      <div className="bg-white dark:bg-slate-800 p-3 w-fit rounded-2xl shadow-sm">
+        {icon}
+      </div>
+      <div>
+        <h4 className="font-bold text-sm text-slate-900 dark:text-white">{title}</h4>
+        <p className="text-[10px] text-slate-500 font-medium">{desc}</p>
       </div>
     </div>
   )
 }
 
-// --- SUB-COMPONENT: GUEST VIEW ---
-function MobileHomeGuest({ handleCardPress }: { handleCardPress: (tab: string) => void }) {
+function LoadingState() {
   return (
-    <div className="flex flex-col gap-6 p-5 pb-28 min-h-screen bg-background font-geist">
-      <div className="space-y-2 pt-2 font-geist">
-        <h1 className="text-3xl font-extrabold tracking-tight text-foreground">{DASHBOARD_UI.GUEST.TITLE}</h1>
-        <div className="flex items-center gap-2 p-3 rounded-xl bg-primary/5 border border-primary/10">
-          <Star className="w-4 h-4 text-primary fill-primary" />
-          <p className="text-xs font-semibold text-primary">{DASHBOARD_UI.GUEST.BADGE}</p>
-        </div>
+    <div className="h-screen flex flex-col items-center justify-center bg-[#F8FAFC] dark:bg-background">
+      <div className="relative mb-6">
+        <div className="w-16 h-16 border-4 border-primary/20 border-t-primary rounded-full animate-spin" />
+        <ShieldCheck className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-primary w-8 h-8" />
       </div>
-
-      <div className="space-y-3">
-        <ActionCard 
-          {...DASHBOARD_UI.ACTIONS.SCAN}
-          icon={<FileText className={DASHBOARD_UI.ACTIONS.SCAN.iconColor} />} 
-          onClick={() => handleCardPress('scan')} 
-        />
-        <ActionCard 
-          {...DASHBOARD_UI.ACTIONS.UPLOAD}
-          icon={<Upload className={DASHBOARD_UI.ACTIONS.UPLOAD.iconColor} />} 
-          onClick={() => handleCardPress('upload')} 
-        />
-      </div>
-
-      <Card className="border-dashed border-primary/30 bg-gradient-to-br from-primary/5 to-transparent shadow-sm">
-        <CardContent className="p-6 text-center space-y-4 font-geist">
-          <div className="w-12 h-12 bg-background rounded-full mx-auto flex items-center justify-center shadow-sm border border-border">
-            <Lock className="w-5 h-5 text-primary" />
-          </div>
-          <div className="space-y-1">
-            <h3 className="font-bold text-lg">{DASHBOARD_UI.GUEST.HISTORY_LOCKED_TITLE}</h3>
-            <p className="text-xs text-muted-foreground leading-relaxed px-2">{DASHBOARD_UI.GUEST.HISTORY_LOCKED_DESC}</p>
-          </div>
-          <Button onClick={() => handleCardPress('profile')} className="w-full font-bold shadow-md h-11">
-            Create Free Account
-          </Button>
-        </CardContent>
-      </Card>
+      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest animate-pulse">Syncing Secure Cloud</p>
     </div>
-  )
-}
-
-// --- MAIN EXPORT COMPONENT ---
-export function MobileHomeView({ onNavigate }: { onNavigate: (tab: string) => void }) {
-  const { isNative } = usePlatform()
-  const [user, setUser] = useState<any>(null)
-  const [loading, setLoading] = useState(true)
-  const [stats, setStats] = useState({ totalScans: 0, blocked: 0, accuracy: 0 })
-
-  useEffect(() => {
-    const supabase = createClient()
-    
-    const fetchData = async () => {
-      const { data: { session } } = await supabase.auth.getSession()
-      const currentUser = session?.user ?? null;
-      setUser(currentUser)
-
-      if (currentUser) {
-        // Fetch dynamic stats from Supabase
-        const { count: scanCount } = await supabase
-          .from('scans')
-          .select('*', { count: 'exact', head: true })
-          .eq('user_id', currentUser.id);
-
-        const { count: blockedCount } = await supabase
-          .from('scans')
-          .select('*', { count: 'exact', head: true })
-          .eq('user_id', currentUser.id)
-          .eq('is_scam', true);
-
-        // Fetch user score from profile or challenge table
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('trust_score')
-          .eq('id', currentUser.id)
-          .single();
-
-        setStats({
-          totalScans: scanCount || 0,
-          blocked: blockedCount || 0,
-          accuracy: profile?.trust_score || 0
-        })
-      }
-      setLoading(false)
-    }
-
-    fetchData()
-  }, [])
-
-  const handleCardPress = async (tab: string) => {
-    if (isNative) {
-      await hapticFeedback('medium')
-    }
-    onNavigate(tab)
-  }
-
-  if (loading) {
-    return (
-      <div className="flex h-screen items-center justify-center bg-background font-geist">
-        <div className="animate-pulse text-muted-foreground font-medium">Protecting...</div>
-      </div>
-    )
-  }
-
-  return user ? (
-    <MobileHomeAccount user={user} stats={stats} handleCardPress={handleCardPress} />
-  ) : (
-    <MobileHomeGuest handleCardPress={handleCardPress} />
-  )
-}
-
-// --- HELPER SHARED COMPONENTS ---
-function ActionCard({ title, desc, icon, color, onClick }: any) {
-  return (
-    <Card className="cursor-pointer active:scale-[0.98] transition-all border-border/40 bg-card/50 backdrop-blur-sm" onClick={onClick}>
-      <CardContent className="flex items-center gap-4 p-4 font-geist">
-        <div className={`flex items-center justify-center w-12 h-12 rounded-2xl ${color} border border-border/10`}>
-          {icon}
-        </div>
-        <div className="flex-1">
-          <h3 className="font-semibold text-foreground text-sm leading-none mb-1">{title}</h3>
-          <p className="text-xs text-muted-foreground">{desc}</p>
-        </div>
-        <ChevronRight className="w-4 h-4 text-muted-foreground" />
-      </CardContent>
-    </Card>
-  )
-}
-
-function StatCard({ icon, value, label, color = "muted" }: any) {
-  const borderClass = color === 'destructive' ? 'border-destructive/20' : color === 'emerald' ? 'border-emerald-500/20' : 'border-border/40';
-  const bgClass = color === 'destructive' ? 'bg-destructive/5' : color === 'emerald' ? 'bg-emerald-500/5' : 'bg-muted/30';
-  const textClass = color === 'destructive' ? 'text-destructive' : color === 'emerald' ? 'text-emerald-600 dark:text-emerald-400' : 'text-foreground';
-
-  return (
-    <Card className={`${borderClass} ${bgClass} shadow-sm font-geist`}>
-      <CardContent className="p-3 text-center flex flex-col items-center justify-center gap-1.5 h-full">
-        <div className="p-1.5 bg-background rounded-lg border border-border/50 shadow-sm mb-1">
-          {icon}
-        </div>
-        <div className="space-y-0.5">
-          <p className={`text-xl font-bold leading-none ${textClass}`}>{value}</p>
-          <p className={`text-[10px] font-bold uppercase tracking-widest ${color !== 'muted' ? textClass + '/80' : 'text-muted-foreground'}`}>{label}</p>
-        </div>
-      </CardContent>
-    </Card>
   )
 }
