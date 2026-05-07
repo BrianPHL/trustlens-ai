@@ -166,8 +166,8 @@ export default function ImmunityModePage() {
         const finalStates = states.map((s, idx) => {
           const ch = challenges[idx]
           const redFlags = ch.segments.filter((seg: any) => seg.isRedFlag).length
-          const found = Array.from(s.selectedIndices).filter(i => ch.segments[i].isRedFlag).length
-          const distractors = Array.from(s.selectedIndices).filter(i => ch.segments[i].isDistractor).length
+          const found = Array.from(s.selectedIndices).filter((i: any) => ch.segments[i].isRedFlag).length
+          const distractors = Array.from(s.selectedIndices).filter((i: any) => ch.segments[i].isDistractor).length
           
           const isCorrect = (redFlags === 0 && distractors === 0) || (redFlags > 0 && found > 0 && distractors === 0)
           if (isCorrect) finalScore++

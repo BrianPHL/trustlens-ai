@@ -216,7 +216,7 @@ export default function ImmunityRevealPage() {
                   <h3 className="font-semibold mb-4">Detailed Breakdown</h3>
                   <div className="space-y-3">
                     {current.signals.map((signal: any, i: number) => {
-                      const isFound = [...current.correctIndices].some(idx => current.segments[idx]?.text.includes(signal.phrase) || signal.phrase.includes(current.segments[idx]?.text))
+                      const isFound = [...current.correctIndices].some((idx: any) => current.segments[idx]?.text.includes(signal.phrase) || signal.phrase.includes(current.segments[idx]?.text))
                       // Use a simpler approach to check if found: did they click any segment that overlaps with this signal?
                       // Actually, let's just use the signal list and see if they clicked the corresponding segments.
                       return (
