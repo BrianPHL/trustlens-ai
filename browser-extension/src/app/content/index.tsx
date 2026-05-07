@@ -37,7 +37,7 @@ let autoHighlightEnabled = false;
 let scanTimeout: number | null = null;
 let isScanning = false;
 let tooltipElement: HTMLDivElement | null = null;
-let badgeElement: HTMLButtonElement | null = null;
+let badgeElement: HTMLDivElement | null = null;
 let activeTooltipTarget: HTMLElement | null = null;
 let lastAnalysis: AnalysisResult | null = null;
 let mutationObserver: MutationObserver | null = null;
@@ -700,7 +700,19 @@ const start = () => {
 export default defineContentScript({
   matches: ["<all_urls>"],
   main() {
-    const isWebApp = window.location.hostname === 'localhost' || window.location.hostname.includes('trustlens');
+    const webAppDomains = [
+      'localhost',
+      '127.0.0.1',
+      'trustlens-ai-alpha.vercel.app',
+      'trustlens-ai-git-main-brianphls-projects.vercel.app',
+      'trustlens-q7j27e9gr-brianphls-projects.vercel.app',
+      'trustlens-ai-brianphls-projects.vercel.app'
+    ];
+    
+    const isWebApp = webAppDomains.some(domain => 
+      window.location.hostname === domain || 
+      window.location.hostname.endsWith('.' + domain)
+    ) || window.location.hostname.includes('trustlens');
 
     if (isWebApp) {
       // On the web app, only listen for payload transfer requests
