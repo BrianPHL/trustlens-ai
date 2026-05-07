@@ -24,7 +24,8 @@ import {
   analyzeMessage, 
   SAMPLE_MESSAGE, 
   SAMPLE_ANALYSIS,
-  type AnalysisResult 
+  type AnalysisResult, 
+  TextSegment
 } from '@/lib/scam-analyzer'
 import { createClient } from '@/lib/supabase/client'
 

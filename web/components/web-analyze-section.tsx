@@ -1,10 +1,11 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { Scan, Upload, Loader2, AlertTriangle, CheckCircle, AlertCircle } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
+import { extractTextFromImage } from '@/lib/ocr-engine'
 
 type RiskLevel = 'high' | 'medium' | 'low' | null
 
@@ -19,6 +20,37 @@ export function WebAnalyzeSection() {
   const [message, setMessage] = useState('')
   const [isAnalyzing, setIsAnalyzing] = useState(false)
   const [result, setResult] = useState<AnalysisResult | null>(null)
+  
+  // OCR states
+  const [isExtracting, setIsExtracting] = useState(false)
+  const [extractProgress, setExtractProgress] = useState(0)
+  const [extractStatus, setExtractStatus] = useState('')
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const processFile = async (file: File) => {
+    setIsExtracting(true)
+    setExtractProgress(0)
+    setExtractStatus('Initializing OCR...')
+
+    try {
+      const text = await extractTextFromImage(file, (progress, status) => {
+        setExtractProgress(progress)
+        setExtractStatus(status)
+      })
+      setMessage(text.trim())
+    } catch (error) {
+      console.error('OCR Error:', error)
+    } finally {
+      setIsExtracting(false)
+    }
+  }
+
+  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+    await processFile(file)
+    event.target.value = ''
+  }
 
   const analyzeMessage = async () => {
     if (!message.trim()) return
@@ -36,7 +68,7 @@ export function WebAnalyzeSection() {
     const highlightedText: { text: string; type: 'danger' | 'warning' | 'normal' }[] = []
 
     // Parse the message and highlight risky parts
-    const words = message.split(' ')
+    const words = message.split(/\s+/)
     let currentChunk = ''
     let currentType: 'danger' | 'warning' | 'normal' = 'normal'
 
@@ -89,7 +121,7 @@ export function WebAnalyzeSection() {
     setResult({
       riskLevel,
       indicators,
-      explanation: explanations[riskLevel],
+      explanation: explanations[riskLevel ?? 'low'],
       highlightedText
     })
 
@@ -130,18 +162,35 @@ export function WebAnalyzeSection() {
                 Message Input
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <Textarea
-                placeholder="Paste the suspicious message here..."
-                value={message}
-                onChange={(e) => setMessage(e.target.value)}
-                className="min-h-40 resize-none"
+            <CardContent className="space-y-4 p-4 md:p-6">
+              <input 
+                type="file" 
+                ref={fileInputRef} 
+                accept="image/*" 
+                className="hidden" 
+                onChange={handleFileChange} 
               />
-              <div className="flex gap-3">
+              <div className="relative">
+                <Textarea
+                  placeholder="Paste the suspicious message here..."
+                  value={message}
+                  onChange={(e) => setMessage(e.target.value)}
+                  className="min-h-40 resize-none text-sm md:text-base"
+                  disabled={isExtracting}
+                />
+                {isExtracting && (
+                  <div className="absolute inset-0 bg-background/60 backdrop-blur-[1px] flex flex-col items-center justify-center rounded-md border border-input">
+                    <Loader2 className="w-8 h-8 animate-spin text-primary mb-2" />
+                    <p className="text-sm font-medium">{extractStatus}</p>
+                    <p className="text-xs text-muted-foreground">{extractProgress}%</p>
+                  </div>
+                )}
+              </div>
+              <div className="flex flex-col sm:flex-row gap-3">
                 <Button 
                   onClick={analyzeMessage}
-                  disabled={!message.trim() || isAnalyzing}
-                  className="flex-1 gap-2"
+                  disabled={!message.trim() || isAnalyzing || isExtracting}
+                  className="flex-1 gap-2 h-11 md:h-12 text-sm md:text-base"
                 >
                   {isAnalyzing ? (
                     <>
@@ -155,7 +204,12 @@ export function WebAnalyzeSection() {
                     </>
                   )}
                 </Button>
-                <Button variant="outline" className="gap-2">
+                <Button 
+                  variant="outline" 
+                  className="gap-2 h-11 md:h-12 text-sm md:text-base"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isExtracting || isAnalyzing}
+                >
                   <Upload className="w-4 h-4" />
                   Upload
                 </Button>
