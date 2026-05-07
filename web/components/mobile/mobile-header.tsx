@@ -1,17 +1,22 @@
 'use client'
 
-import { Shield, ChevronLeft, Bell, Settings } from 'lucide-react'
+import { Shield, ChevronLeft } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
 interface MobileHeaderProps {
   title?: string
   showBackButton?: boolean
   onBack?: () => void
+  // onNavigate removed as it's no longer used here
 }
 
-export function MobileHeader({ title = 'TrustLens AI', showBackButton = false, onBack }: MobileHeaderProps) {
+export function MobileHeader({ 
+  title = 'TrustLens AI', 
+  showBackButton = false, 
+  onBack 
+}: MobileHeaderProps) {
   return (
-    <header className="sticky top-0 z-40 w-full bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 mobile-safe-top">
+    <header className="sticky top-0 z-40 w-full bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b border-border/40">
       <div className="flex items-center justify-between h-14 px-4">
         <div className="flex items-center gap-3">
           {showBackButton ? (
@@ -23,16 +28,11 @@ export function MobileHeader({ title = 'TrustLens AI', showBackButton = false, o
               <Shield className="w-5 h-5 text-primary-foreground" />
             </div>
           )}
-          <span className="font-semibold text-foreground">{title}</span>
+          <span className="font-bold text-foreground tracking-tight">{title}</span>
         </div>
-        <div className="flex items-center gap-1">
-          <Button variant="ghost" size="icon">
-            <Bell className="w-5 h-5 text-muted-foreground" />
-          </Button>
-          <Button variant="ghost" size="icon">
-            <Settings className="w-5 h-5 text-muted-foreground" />
-          </Button>
-        </div>
+        
+        {/* Right side is now empty to prevent the duplicate icons shown in image_930912.png */}
+        <div className="flex items-center w-10" /> 
       </div>
     </header>
   )
