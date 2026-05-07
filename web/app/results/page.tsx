@@ -28,6 +28,99 @@ import {
 } from '@/lib/scam-analyzer'
 import { createClient } from '@/lib/supabase/client'
 
+function mapExtensionAnalysis(text: string, extAnalysis: any): AnalysisResult {
+  const signals = (extAnalysis.matches || []).map((m: any) => {
+    let icon = 'ShieldAlert';
+    const cat = (m.category || '').toLowerCase();
+    if (cat.includes('urgency')) icon = 'Clock';
+    else if (cat.includes('link')) icon = 'Link2';
+    else if (cat.includes('information') || cat.includes('otp')) icon = 'KeyRound';
+    else if (cat.includes('account')) icon = 'ShieldAlert';
+    else if (cat.includes('impersonation')) icon = 'UserX';
+    else if (cat.includes('prize') || cat.includes('reward')) icon = 'Gift';
+    else if (cat.includes('payment')) icon = 'CreditCard';
+    else if (cat.includes('isolation')) icon = 'VolumeX';
+
+    return {
+      id: m.id || Math.random().toString(),
+      category: m.category || 'Unknown',
+      label: m.category || 'Unknown',
+      phrase: m.matchedText || '',
+      severity: m.severity === 'high' ? 'critical' : (m.severity === 'medium' ? 'high' : 'medium'),
+      explanation: m.explanation || m.category,
+      tip: m.tip || 'Proceed with caution.',
+      icon
+    };
+  });
+
+  const segments: TextSegment[] = [];
+  if (signals.length > 0) {
+    const phrasePositions = (extAnalysis.matches || [])
+      .map((m: any, idx: number) => ({ signal: signals[idx], start: m.startIndex, end: m.endIndex }))
+      .sort((a: any, b: any) => a.start - b.start);
+
+    let cursor = 0;
+    for (const pp of phrasePositions) {
+      if (pp.start > cursor) {
+        segments.push({ text: text.substring(cursor, pp.start), type: 'normal', isRedFlag: false });
+      }
+      if (pp.start >= cursor) {
+        const segmentText = text.substring(pp.start, pp.end);
+        if (segmentText.length > 0) {
+          segments.push({
+            text: segmentText,
+            type: pp.signal.severity === 'critical' || pp.signal.severity === 'high' ? 'danger' : 'warning',
+            signalId: pp.signal.id,
+            isRedFlag: true
+          });
+          cursor = pp.end;
+        }
+      }
+    }
+    if (cursor < text.length) {
+      segments.push({ text: text.substring(cursor), type: 'normal', isRedFlag: false });
+    }
+  } else {
+    segments.push({ text, type: 'normal', isRedFlag: false });
+  }
+
+  let scamPct = 0;
+  let susPct = 0;
+  let safePct = 100;
+
+  if (extAnalysis.riskLevel === 'high') {
+    scamPct = Math.min(extAnalysis.riskScore, 85);
+    susPct = Math.min(100 - scamPct, 15);
+    safePct = Math.max(0, 100 - scamPct - susPct);
+  } else if (extAnalysis.riskLevel === 'medium') {
+    scamPct = Math.floor(extAnalysis.riskScore * 0.4);
+    susPct = Math.floor(extAnalysis.riskScore * 0.5);
+    safePct = Math.max(0, 100 - scamPct - susPct);
+  } else {
+    scamPct = 3;
+    susPct = 5;
+    safePct = 92;
+  }
+
+  return {
+    riskLevel: extAnalysis.riskLevel || 'low',
+    riskScore: extAnalysis.riskScore || 0,
+    percentages: { safe: safePct, suspicious: susPct, scam: scamPct },
+    signals,
+    segments,
+    explanation: extAnalysis.summary || (extAnalysis.riskLevel === 'high' ? 'High risk message detected.' : 'Message analyzed.'),
+    confidence: signals.length === 0 ? 45 : Math.min(70 + signals.length * 4, 98),
+    recommendedActions: signals.length === 0 
+      ? [{ number: 1, title: 'Stay vigilant', description: 'Always verify unexpected requests through official channels.' }]
+      : [
+          { number: 1, title: 'Do not click any links', description: 'Links may lead to fake pages designed to steal your credentials.' },
+          { number: 2, title: 'Do not share OTP, password, or PIN', description: 'Legitimate services never ask for these via unsolicited messages.' },
+          { number: 3, title: 'Verify through official channels', description: 'Open the official app directly or visit the official website.' },
+          { number: 4, title: 'Report and block the sender', description: 'Help protect others by reporting this to your carrier.' }
+        ]
+  };
+}
+
 export default function ResultsPage() {
   const [result, setResult] = useState<AnalysisResult>(SAMPLE_ANALYSIS)
   const [originalMessage, setOriginalMessage] = useState(SAMPLE_MESSAGE)
@@ -35,48 +128,135 @@ export default function ResultsPage() {
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      const stored = sessionStorage.getItem('trustlens-message')
-      const storedAnalysis = sessionStorage.getItem('trustlens-analysis')
-      
-      if (storedAnalysis) {
+      let initialMessage = ''
+      let initialGuest = false
+      let precomputedAnalysis: any = null
+
+      const urlParams = new URLSearchParams(window.location.search)
+      const payloadParam = urlParams.get('payload')
+      const transferId = urlParams.get('transferId')
+
+      const applyAnalysis = (msg: string, isGuest: boolean, extAnalysis: any) => {
+        setIsGuest(isGuest)
+        if (msg) {
+          setOriginalMessage(msg)
+          let analysis: AnalysisResult
+          if (msg.trim() === SAMPLE_MESSAGE.trim()) {
+            analysis = SAMPLE_ANALYSIS
+            setResult(SAMPLE_ANALYSIS)
+          } else if (extAnalysis) {
+            analysis = mapExtensionAnalysis(msg, extAnalysis)
+            setResult(analysis)
+          } else {
+            analysis = analyzeMessage(msg)
+            setResult(analysis)
+          }
+
+          const saveHistory = async () => {
+            const supabase = createClient()
+            const { data: { session } } = await supabase.auth.getSession()
+            
+            if (session?.user && msg.trim() !== SAMPLE_MESSAGE.trim()) {
+              await supabase.from('scan_history').insert({
+                user_id: session.user.id,
+                message_text: msg,
+                risk_level: analysis.riskLevel,
+                risk_score: analysis.riskScore,
+                scam_percentage: analysis.percentages.scam,
+                suspicious_percentage: analysis.percentages.suspicious,
+                safe_percentage: analysis.percentages.safe,
+                signals_detected: analysis.signals
+              })
+            }
+          }
+          saveHistory()
+        }
+      };
+
+      if (payloadParam) {
         try {
-          const parsed = JSON.parse(storedAnalysis)
-          setIsGuest(parsed.isGuestView || false)
-        } catch (e) {
-          console.error("Error parsing analysis context", e)
-        }
-      }
-
-      if (stored) {
-        setOriginalMessage(stored)
-        let analysis: AnalysisResult
-        
-        if (stored.trim() === SAMPLE_MESSAGE.trim()) {
-          analysis = SAMPLE_ANALYSIS
-          setResult(SAMPLE_ANALYSIS)
-        } else {
-          analysis = analyzeMessage(stored)
-          setResult(analysis)
-        }
-
-        const saveHistory = async () => {
-          const supabase = createClient()
-          const { data: { session } } = await supabase.auth.getSession()
+          const decodedBase64 = atob(payloadParam)
+          const decodedJsonString = decodeURIComponent(decodedBase64)
+          const parsedPayload = JSON.parse(decodedJsonString)
           
-          if (session?.user && stored.trim() !== SAMPLE_MESSAGE.trim()) {
-            await supabase.from('scan_history').insert({
-              user_id: session.user.id,
-              message_text: stored,
-              risk_level: analysis.riskLevel,
-              risk_score: analysis.riskScore,
-              scam_percentage: analysis.percentages.scam,
-              suspicious_percentage: analysis.percentages.suspicious,
-              safe_percentage: analysis.percentages.safe,
-              signals_detected: analysis.signals
-            })
+          initialMessage = parsedPayload.text || ''
+          
+          if (parsedPayload.analysis) {
+            precomputedAnalysis = parsedPayload.analysis
+          }
+          
+          initialGuest = parsedPayload.isGuestView || false
+          
+          // Clean up the URL
+          window.history.replaceState({}, '', window.location.pathname)
+          applyAnalysis(initialMessage, initialGuest, precomputedAnalysis);
+        } catch (e) {
+          console.error("Error parsing URL payload", e)
+        }
+      } else if (transferId) {
+        // We expect the extension content script to send a postMessage
+        // or set sessionStorage very shortly.
+        const handleMessage = (event: MessageEvent) => {
+          if (event.data && event.data.type === 'TRUSTLENS_TRANSFER_PAYLOAD') {
+            window.removeEventListener('message', handleMessage);
+            const parsedPayload = event.data.payload;
+            initialMessage = parsedPayload.text || '';
+            if (parsedPayload.analysis) {
+              precomputedAnalysis = parsedPayload.analysis;
+            }
+            initialGuest = parsedPayload.isGuestView || false;
+            window.history.replaceState({}, '', window.location.pathname);
+            applyAnalysis(initialMessage, initialGuest, precomputedAnalysis);
+          }
+        };
+        window.addEventListener('message', handleMessage);
+        
+        // Broadcast a request just in case the content script is already ready
+        window.postMessage({ type: 'TRUSTLENS_REQUEST_TRANSFER', transferId }, '*');
+
+        // Fallback: Check sessionStorage after a short delay in case postMessage fails
+        setTimeout(() => {
+          if (initialMessage === '') {
+            const stored = sessionStorage.getItem('trustlens-message');
+            if (stored) {
+               window.removeEventListener('message', handleMessage);
+               initialMessage = stored;
+               const storedAnalysis = sessionStorage.getItem('trustlens-analysis');
+               if (storedAnalysis) {
+                  try {
+                    const parsed = JSON.parse(storedAnalysis);
+                    initialGuest = parsed.isGuestView || false;
+                    if (parsed.analysis) {
+                      precomputedAnalysis = parsed.analysis;
+                    }
+                  } catch (e) {}
+               }
+               window.history.replaceState({}, '', window.location.pathname);
+               applyAnalysis(initialMessage, initialGuest, precomputedAnalysis);
+            }
+          }
+        }, 300);
+
+      } else {
+        const stored = sessionStorage.getItem('trustlens-message')
+        const storedAnalysis = sessionStorage.getItem('trustlens-analysis')
+        
+        if (stored) {
+          initialMessage = stored
+        }
+        
+        if (storedAnalysis) {
+          try {
+            const parsed = JSON.parse(storedAnalysis)
+            initialGuest = parsed.isGuestView || false
+            if (parsed.analysis) {
+              precomputedAnalysis = parsed.analysis
+            }
+          } catch (e) {
+            console.error("Error parsing analysis context", e)
           }
         }
-        saveHistory()
+        applyAnalysis(initialMessage, initialGuest, precomputedAnalysis);
       }
     }
   }, [])

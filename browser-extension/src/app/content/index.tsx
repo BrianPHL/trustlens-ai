@@ -683,6 +683,24 @@ const init = async () => {
     };
     h._trustlens_wrapped = true;
   }
+
+  // Support Web App transfer via postMessage
+  window.addEventListener("message", async (event) => {
+    if (event.data && event.data.type === "TRUSTLENS_REQUEST_TRANSFER" && event.data.transferId) {
+      const transferId = event.data.transferId;
+      try {
+        const data = await browser.storage.local.get(transferId);
+        if (data && data[transferId]) {
+          window.postMessage({
+            type: "TRUSTLENS_TRANSFER_PAYLOAD",
+            payload: data[transferId]
+          }, "*");
+        }
+      } catch (err) {
+        console.error("Failed to read transfer payload", err);
+      }
+    }
+  });
 };
 
 const start = () => {

@@ -18,16 +18,9 @@ const getWebAppBaseUrl = () => {
 
 type TransferPayloadInput = Partial<WebAppTransferPayload> & { text?: string };
 
-const encodePayload = (payload: WebAppTransferPayload) => {
-  const json = JSON.stringify(payload);
-  const encoded = encodeURIComponent(json);
-  return btoa(encoded);
-};
-
-const buildResultsUrl = (payload: WebAppTransferPayload) => {
+const buildResultsUrl = (transferId: string) => {
   const base = getWebAppBaseUrl();
-  const encoded = encodePayload(payload);
-  return `${base}/results?payload=${encodeURIComponent(encoded)}`;
+  return `${base}/results?transferId=${encodeURIComponent(transferId)}`;
 };
 
 const normalizeTransferPayload = (
@@ -48,7 +41,17 @@ const openAnalysis = async (payload: TransferPayloadInput) => {
     return false;
   }
 
-  await browser.tabs.create({ url: buildResultsUrl(normalized) });
+  const transferId = `transfer_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+  
+  await browser.storage.local.set({ [transferId]: normalized });
+
+  await browser.tabs.create({ url: buildResultsUrl(transferId) });
+  
+  // Clean up the storage after 5 minutes
+  setTimeout(() => {
+    browser.storage.local.remove(transferId).catch(() => {});
+  }, 5 * 60 * 1000);
+  
   return true;
 };
 
