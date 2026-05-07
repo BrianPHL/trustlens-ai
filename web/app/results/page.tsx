@@ -2,16 +2,16 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { 
-  Shield, 
-  Info, 
-  ArrowRight, 
-  Lock, 
-  AlertTriangle, 
-  Eye, 
-  FileText, 
-  Globe, 
-  ShieldAlert 
+import {
+  Shield,
+  Info,
+  ArrowRight,
+  Lock,
+  AlertTriangle,
+  Eye,
+  FileText,
+  Globe,
+  ShieldAlert
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -20,11 +20,11 @@ import { PercentageBreakdownChart } from '@/components/shared/percentage-breakdo
 import { DetectionFlag } from '@/components/shared/detection-flag'
 import { HighlightedText } from '@/components/shared/highlighted-text'
 import { ExplanationCard } from '@/components/shared/explanation-card'
-import { 
-  analyzeMessage, 
-  SAMPLE_MESSAGE, 
+import {
+  analyzeMessage,
+  SAMPLE_MESSAGE,
   SAMPLE_ANALYSIS,
-  type AnalysisResult, 
+  type AnalysisResult,
   TextSegment,
   mapExtensionAnalysis
 } from '@/lib/scam-analyzer'
@@ -53,7 +53,7 @@ export default function ResultsPage() {
         const { data: { session } } = await supabase.auth.getSession()
         const isUserLoggedIn = !!session?.user
         const finalGuest = explicitlyGuest || !isUserLoggedIn
-        
+
         setIsGuest(finalGuest)
         if (msg) {
           setOriginalMessage(msg)
@@ -89,16 +89,16 @@ export default function ResultsPage() {
           const decodedBase64 = atob(payloadParam)
           const decodedJsonString = decodeURIComponent(decodedBase64)
           const parsedPayload = JSON.parse(decodedJsonString)
-          
+
           initialMessage = parsedPayload.text || ''
-          
+
           if (parsedPayload.analysis) {
             precomputedAnalysis = parsedPayload.analysis
           }
-          
+
           initialGuest = parsedPayload.isGuestView || false
           analysisSource = parsedPayload.source || 'unknown'
-          
+
           // Clean up the URL
           window.history.replaceState({}, '', window.location.pathname)
           applyAnalysis(initialMessage, initialGuest, precomputedAnalysis, analysisSource);
@@ -123,7 +123,7 @@ export default function ResultsPage() {
           }
         };
         window.addEventListener('message', handleMessage);
-        
+
         // Broadcast a request just in case the content script is already ready
         window.postMessage({ type: 'TRUSTLENS_REQUEST_TRANSFER', transferId }, '*');
 
@@ -132,21 +132,21 @@ export default function ResultsPage() {
           if (initialMessage === '') {
             const stored = sessionStorage.getItem('trustlens-message');
             if (stored) {
-               window.removeEventListener('message', handleMessage);
-               initialMessage = stored;
-               const storedAnalysis = sessionStorage.getItem('trustlens-analysis');
-               if (storedAnalysis) {
-                  try {
-                    const parsed = JSON.parse(storedAnalysis);
-                    initialGuest = parsed.isGuestView || false;
-                    if (parsed.analysis) {
-                      precomputedAnalysis = parsed.analysis;
-                    }
-                    analysisSource = parsed.source || 'unknown';
-                  } catch (e) {}
-               }
-               window.history.replaceState({}, '', window.location.pathname);
-               applyAnalysis(initialMessage, initialGuest, precomputedAnalysis, analysisSource);
+              window.removeEventListener('message', handleMessage);
+              initialMessage = stored;
+              const storedAnalysis = sessionStorage.getItem('trustlens-analysis');
+              if (storedAnalysis) {
+                try {
+                  const parsed = JSON.parse(storedAnalysis);
+                  initialGuest = parsed.isGuestView || false;
+                  if (parsed.analysis) {
+                    precomputedAnalysis = parsed.analysis;
+                  }
+                  analysisSource = parsed.source || 'unknown';
+                } catch (e) { }
+              }
+              window.history.replaceState({}, '', window.location.pathname);
+              applyAnalysis(initialMessage, initialGuest, precomputedAnalysis, analysisSource);
             }
           }
         }, 300);
@@ -154,11 +154,11 @@ export default function ResultsPage() {
       } else {
         const stored = sessionStorage.getItem('trustlens-message')
         const storedAnalysis = sessionStorage.getItem('trustlens-analysis')
-        
+
         if (stored) {
           initialMessage = stored
         }
-        
+
         if (storedAnalysis) {
           try {
             const parsed = JSON.parse(storedAnalysis)
@@ -190,9 +190,9 @@ export default function ResultsPage() {
 
         <div className="grid lg:grid-cols-[7fr_3fr] gap-8">
           <div className="space-y-6">
-            <RiskScoreCard 
-              score={result.riskScore} 
-              level={result.riskLevel} 
+            <RiskScoreCard
+              score={result.riskScore}
+              level={result.riskLevel}
               signalCount={result.signals.length}
               confidence={result.confidence}
             />
@@ -229,16 +229,16 @@ export default function ResultsPage() {
             {/* Container for Analysis Content & Lock Overlay */}
             <div className="relative">
               <div className={`space-y-6 transition-all duration-500 ${isGuest ? 'select-none pointer-events-none pb-40 md:pb-60' : ''}`}>
-                
+
                 <Card className={`border-border/50 ${isGuest ? 'opacity-40 blur-[2px]' : ''}`}>
                   <CardContent className="p-6">
                     <PercentageBreakdownChart percentages={result.percentages} />
                   </CardContent>
                 </Card>
 
-                <div 
+                <div
                   className="space-y-3"
-                  style={isGuest ? { 
+                  style={isGuest ? {
                     maskImage: 'linear-gradient(to bottom, black 0%, rgba(0,0,0,0.1) 30%, transparent 100%)',
                     WebkitMaskImage: 'linear-gradient(to bottom, black 0%, rgba(0,0,0,0.1) 30%, transparent 100%)'
                   } : {}}
@@ -292,7 +292,7 @@ export default function ResultsPage() {
                       </p>
                       <div className="flex flex-col gap-4">
                         <Button asChild size="lg" className="w-full h-12 text-md font-bold shadow-sm">
-                          <Link href="/auth/signup">Unlock Full Analysis</Link>
+                          <Link href="/login">Unlock Full Analysis</Link>
                         </Button>
                         <div className="text-sm text-muted-foreground">
                           Already have an account? <Link href="/login" className="text-primary font-bold hover:underline">Log In</Link>
@@ -307,7 +307,7 @@ export default function ResultsPage() {
             {/* Bottom Navigation Buttons - Now pushed below overlay via padding-bottom on inner content */}
             <div className="flex flex-col sm:flex-row gap-3 pt-4 relative z-10">
               <Button asChild size="lg" className="gap-2 flex-1 h-12 font-bold shadow-md">
-                <Link href={isGuest ? "/auth/signup" : "/immunity-mode"}>
+                <Link href={isGuest ? "/login" : "/immunity-mode"}>
                   {isGuest ? "Get Full Protection" : "Start Immunity Mode"}
                   <ArrowRight className="w-4 h-4" />
                 </Link>
@@ -322,8 +322,8 @@ export default function ResultsPage() {
             <Card className="border-border/50">
               <CardContent className="p-6">
                 <div className="flex items-center justify-between mb-4 border-b border-border/50 pb-2">
-                   <h3 className="font-semibold text-foreground text-lg">Recommended</h3>
-                   {isGuest && <Lock className="w-3.5 h-3.5 text-muted-foreground/40" />}
+                  <h3 className="font-semibold text-foreground text-lg">Recommended</h3>
+                  {isGuest && <Lock className="w-3.5 h-3.5 text-muted-foreground/40" />}
                 </div>
                 <div className="space-y-5">
                   {(isGuest ? result.recommendedActions.slice(0, 2) : result.recommendedActions).map((action) => (

@@ -1,14 +1,14 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
-import { 
-  Scan, 
-  Upload, 
-  AlertTriangle, 
-  CheckCircle, 
-  AlertCircle, 
-  Loader2, 
-  Camera, 
+import {
+  Scan,
+  Upload,
+  AlertTriangle,
+  CheckCircle,
+  AlertCircle,
+  Loader2,
+  Camera,
   Info,
   Lock,
   FileText,
@@ -35,7 +35,7 @@ export function MobileScanView() {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [result, setResult] = useState<AnalysisResult | null>(null)
   const [isGuest, setIsGuest] = useState(false)
-  
+
   const fileInputRef = useRef<HTMLInputElement>(null)
   const cameraInputRef = useRef<HTMLInputElement>(null)
   const { isNative } = usePlatform()
@@ -72,7 +72,7 @@ export function MobileScanView() {
     if (isNative) await hapticFeedback('medium')
 
     const analysis = analyzeMessage(text)
-    await new Promise(resolve => setTimeout(resolve, 1200)) 
+    await new Promise(resolve => setTimeout(resolve, 1200))
 
     setResult(analysis)
     setIsAnalyzing(false)
@@ -161,7 +161,7 @@ export function MobileScanView() {
       {/* Result Section */}
       {result && (
         <div className="space-y-5 animate-in fade-in slide-in-from-bottom-4 duration-500">
-          
+
           {/* HERO CARD */}
           <Card className="border-none shadow-xl overflow-hidden bg-gradient-to-br from-background to-muted/40">
             <CardContent className="p-6">
@@ -245,7 +245,7 @@ export function MobileScanView() {
             <div className={`space-y-4 ${isGuest ? 'blur-md opacity-40 select-none' : ''}`}>
               <div className="space-y-2">
                 <h3 className="text-sm font-bold flex gap-2 items-center">
-                  <FileText className="w-4 h-4 text-muted-foreground" /> 
+                  <FileText className="w-4 h-4 text-muted-foreground" />
                   Message Map
                 </h3>
                 <div className="p-4 rounded-2xl bg-muted/20 border border-border/40">
@@ -255,10 +255,10 @@ export function MobileScanView() {
 
               {!isGuest && (
                 <div className="space-y-2">
-                   <h3 className="text-sm font-bold">Signal Breakdown</h3>
-                   {result.signals.map((s) => (
-                      <DetectionFlag key={s.id} label={s.explanation} category={s.category} icon={s.icon} severity={s.severity} />
-                   ))}
+                  <h3 className="text-sm font-bold">Signal Breakdown</h3>
+                  {result.signals.map((s) => (
+                    <DetectionFlag key={s.id} label={s.explanation} category={s.category} icon={s.icon} severity={s.severity} />
+                  ))}
                 </div>
               )}
             </div>
@@ -272,7 +272,7 @@ export function MobileScanView() {
                       Analysis details are locked for guests. Sign in to view full signal breakdown.
                     </p>
                     <Button asChild size="sm" className="w-full font-bold h-10 shadow-lg">
-                      <Link href="/auth/signup">Unlock Report</Link>
+                      <Link href="/login">Unlock Report</Link>
                     </Button>
                   </CardContent>
                 </Card>
@@ -281,9 +281,9 @@ export function MobileScanView() {
           </div>
 
           {/* ANALYZE ANOTHER BUTTON */}
-          <Button 
-            variant="ghost" 
-            onClick={handleClear} 
+          <Button
+            variant="ghost"
+            onClick={handleClear}
             className="w-full h-12 rounded-xl gap-2 font-bold text-muted-foreground hover:text-foreground"
           >
             <RefreshCcw className="w-4 h-4" />

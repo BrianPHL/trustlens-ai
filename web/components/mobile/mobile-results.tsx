@@ -2,11 +2,11 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { 
-  ArrowRight, 
-  Lock, 
-  ShieldAlert, 
-  Globe, 
+import {
+  ArrowRight,
+  Lock,
+  ShieldAlert,
+  Globe,
   AlertTriangle,
   FileText,
   ShieldCheck,
@@ -60,10 +60,10 @@ export function MobileResultsView({ result, onStartImmunity }: MobileResultsProp
             <div className="relative flex items-center justify-center w-32 h-32">
               <svg className="w-full h-full transform -rotate-90">
                 <circle cx="64" cy="64" r="58" stroke="currentColor" strokeWidth="8" fill="transparent" className="text-muted/20" />
-                <circle 
-                  cx="64" cy="64" r="58" stroke="currentColor" strokeWidth="8" fill="transparent" 
+                <circle
+                  cx="64" cy="64" r="58" stroke="currentColor" strokeWidth="8" fill="transparent"
                   strokeDasharray={364.4} strokeDashoffset={364.4 - (364.4 * result.riskScore) / 100}
-                  className={`${result.riskLevel === 'high' ? 'text-destructive' : 'text-amber-500'} transition-all duration-1000 ease-out`} 
+                  className={`${result.riskLevel === 'high' ? 'text-destructive' : 'text-amber-500'} transition-all duration-1000 ease-out`}
                   strokeLinecap="round"
                 />
               </svg>
@@ -106,15 +106,15 @@ export function MobileResultsView({ result, onStartImmunity }: MobileResultsProp
           <h3 className="text-sm font-bold mb-4 text-foreground/80 uppercase tracking-wide">Risk Distribution</h3>
           <div className="flex items-center gap-6">
             <div className="relative w-20 h-20 shrink-0">
-               <div className="absolute inset-0 rounded-full border-[6px] border-emerald-500 opacity-20" />
-               <div 
-                 className="absolute inset-0 rounded-full border-[6px] border-t-destructive border-r-amber-400 border-b-transparent border-l-transparent" 
-                 style={{ transform: `rotate(${(result.percentages.scam * 3.6)}deg)` }}
-               />
-               <div className="absolute inset-0 flex flex-col items-center justify-center">
-                 <span className="text-xs font-black">{result.percentages.scam + result.percentages.suspicious}%</span>
-                 <span className="text-[8px] uppercase font-bold text-muted-foreground tracking-tighter">Danger</span>
-               </div>
+              <div className="absolute inset-0 rounded-full border-[6px] border-emerald-500 opacity-20" />
+              <div
+                className="absolute inset-0 rounded-full border-[6px] border-t-destructive border-r-amber-400 border-b-transparent border-l-transparent"
+                style={{ transform: `rotate(${(result.percentages.scam * 3.6)}deg)` }}
+              />
+              <div className="absolute inset-0 flex flex-col items-center justify-center">
+                <span className="text-xs font-black">{result.percentages.scam + result.percentages.suspicious}%</span>
+                <span className="text-[8px] uppercase font-bold text-muted-foreground tracking-tighter">Danger</span>
+              </div>
             </div>
             <div className="flex-1 space-y-2">
               <div className="flex items-center justify-between">
@@ -158,7 +158,7 @@ export function MobileResultsView({ result, onStartImmunity }: MobileResultsProp
           <div className={`p-4 rounded-2xl bg-muted/20 border border-border/40 leading-relaxed ${isGuest ? 'blur-[3px] opacity-40 select-none' : ''}`}>
             <HighlightedText segments={result.segments} />
           </div>
-          
+
           {/* Guest Unlock Overlay (Inside the message box area) */}
           {isGuest && (
             <div className="absolute inset-0 flex items-center justify-center z-20">
@@ -167,7 +167,7 @@ export function MobileResultsView({ result, onStartImmunity }: MobileResultsProp
                   <Lock className="w-6 h-6 text-primary mx-auto mb-2" />
                   <p className="text-[11px] font-bold mb-3">Sign in to see highlighted signals</p>
                   <Button asChild size="sm" className="h-8 text-[10px] font-bold px-6">
-                    <Link href="/auth/signup">Unlock Now</Link>
+                    <Link href="/login">Unlock Now</Link>
                   </Button>
                 </CardContent>
               </Card>
@@ -183,12 +183,12 @@ export function MobileResultsView({ result, onStartImmunity }: MobileResultsProp
             <h3 className="text-sm font-bold text-foreground/80 uppercase tracking-wide">Detailed Signals</h3>
             <div className="space-y-2">
               {result.signals.map((signal) => (
-                <DetectionFlag 
-                  key={signal.id} 
-                  label={signal.explanation} 
-                  category={signal.category} 
-                  icon={signal.icon} 
-                  severity={signal.severity} 
+                <DetectionFlag
+                  key={signal.id}
+                  label={signal.explanation}
+                  category={signal.category}
+                  icon={signal.icon}
+                  severity={signal.severity}
                 />
               ))}
             </div>
@@ -226,8 +226,8 @@ export function MobileResultsView({ result, onStartImmunity }: MobileResultsProp
 
       {/* 8. Main CTA */}
       <div className="pt-4">
-        <Button 
-          onClick={onStartImmunity} 
+        <Button
+          onClick={onStartImmunity}
           className="w-full h-14 rounded-2xl gap-2 font-black text-lg shadow-xl shadow-primary/20 transition-all active:scale-[0.98]"
         >
           {isGuest ? "Get Full Protection" : "Start Immunity Mode"}
