@@ -56,7 +56,21 @@ function mapExtensionAnalysis(text: string, extAnalysis: any, source?: string): 
   const segments: TextSegment[] = [];
   if (signals.length > 0) {
     const phrasePositions = (extAnalysis.matches || [])
-      .map((m: any, idx: number) => ({ signal: signals[idx], start: m.startIndex, end: m.endIndex }))
+      .map((m: any, idx: number) => {
+        let start = -1;
+        let end = -1;
+        if (m.matchedText) {
+          const matchStr = m.matchedText.toLowerCase();
+          const fullStr = text.toLowerCase();
+          const foundIdx = fullStr.indexOf(matchStr);
+          if (foundIdx !== -1) {
+            start = foundIdx;
+            end = foundIdx + m.matchedText.length;
+          }
+        }
+        return { signal: signals[idx], start, end };
+      })
+      .filter((p: any) => p.start !== -1)
       .sort((a: any, b: any) => a.start - b.start);
 
     let cursor = 0;
