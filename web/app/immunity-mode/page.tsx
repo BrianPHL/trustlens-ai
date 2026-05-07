@@ -29,8 +29,6 @@ const hints = [
 
 export default function ImmunityModePage() {
   const router = useRouter()
-export default function ImmunityModePage() {
-  const router = useRouter()
   const [currentIndex, setCurrentIndex] = useState(0)
   const [challenges, setChallenges] = useState<any[]>([])
   const [score, setScore] = useState(0)

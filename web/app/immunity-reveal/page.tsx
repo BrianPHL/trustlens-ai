@@ -36,11 +36,11 @@ export default function ImmunityRevealPage() {
     const signals = challenge.signals || []
     
     // Correct IDs are RedFlags that WERE selected
-    const correctIndices = new Set([...state.selectedIndices].filter(idx => segments[idx]?.isRedFlag))
+    const correctIndices = new Set([...state.selectedIndices].filter((idx: any) => segments[idx]?.isRedFlag))
     // Missed IDs are RedFlags that were NOT selected
-    const missedIndices = new Set(segments.map((s, idx) => s.isRedFlag ? idx : -1).filter(idx => idx !== -1 && !state.selectedIndices.has(idx)))
+    const missedIndices = new Set(segments.map((s: any, idx: number) => s.isRedFlag ? idx : -1).filter((idx: number) => idx !== -1 && !state.selectedIndices.has(idx)))
     
-    const totalRedFlags = segments.filter(s => s.isRedFlag).length
+    const totalRedFlags = segments.filter((s: any) => s.isRedFlag).length
     const score = totalRedFlags > 0 ? Math.round((state.correctlyFound / totalRedFlags) * 100) : 100
     
     return { 
@@ -57,7 +57,7 @@ export default function ImmunityRevealPage() {
   }
 
   const aggregateStats = challenges.reduce(
-    (acc, _, i) => {
+    (acc: any, _: any, i: number) => {
       const q = getQuestionStats(i)
       if (!q) return acc
       return {
@@ -125,7 +125,7 @@ export default function ImmunityRevealPage() {
                 </Button>
 
                 <div className="flex gap-1.5 flex-wrap flex-1 justify-center">
-                  {challenges.map((_, i) => {
+                  {challenges.map((_: any, i: number) => {
                     const q = getQuestionStats(i)
                     const qScore = q?.score ?? 0
                     const dotColor =
@@ -253,7 +253,7 @@ export default function ImmunityRevealPage() {
                   <Lightbulb className="w-5 h-5 text-amber-500" />
                   Personalized Tips
                 </h2>
-                {current.signals.filter((s: any) => ![...current.correctIndices].some(idx => current.segments[idx]?.text.includes(s.phrase))).map((signal: any) => (
+                {current.signals.filter((s: any) => ![...current.correctIndices].some((idx: any) => current.segments[idx]?.text.includes(s.phrase))).map((signal: any) => (
                   <Card
                     key={signal.id}
                     className="border-amber-200 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-950/20"
@@ -322,7 +322,7 @@ export default function ImmunityRevealPage() {
               <CardContent className="p-6">
                 <h3 className="font-semibold mb-4">Question Summary</h3>
                 <div className="space-y-2">
-                  {challenges.map((_, i) => {
+                  {challenges.map((_: any, i: number) => {
                     const q = getQuestionStats(i)
                     if (!q) return null
                     const barColor =
@@ -341,7 +341,7 @@ export default function ImmunityRevealPage() {
                         <div className="h-1.5 bg-muted rounded-full overflow-hidden">
                           <div
                             className={`h-full ${barColor} rounded-full transition-all duration-700`}
-                            style={{ width: `${q.score}%` }} // FIXED
+                            style={{ width: `${q.score}%` }}
                           />
                         </div>
                       </button>
