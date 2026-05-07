@@ -153,8 +153,13 @@ export default function ResultsPage() {
       const payloadParam = urlParams.get('payload')
       const transferId = urlParams.get('transferId')
 
-      const applyAnalysis = (msg: string, isGuest: boolean, extAnalysis: any, src: string) => {
-        setIsGuest(isGuest)
+      const applyAnalysis = async (msg: string, explicitlyGuest: boolean, extAnalysis: any, src: string) => {
+        const supabase = createClient()
+        const { data: { session } } = await supabase.auth.getSession()
+        const isUserLoggedIn = !!session?.user
+        const finalGuest = explicitlyGuest || !isUserLoggedIn
+        
+        setIsGuest(finalGuest)
         if (msg) {
           setOriginalMessage(msg)
           let analysis: AnalysisResult
@@ -169,24 +174,18 @@ export default function ResultsPage() {
             setResult(analysis)
           }
 
-          const saveHistory = async () => {
-            const supabase = createClient()
-            const { data: { session } } = await supabase.auth.getSession()
-            
-            if (session?.user && msg.trim() !== SAMPLE_MESSAGE.trim()) {
-              await supabase.from('scan_history').insert({
-                user_id: session.user.id,
-                message_text: msg,
-                risk_level: analysis.riskLevel,
-                risk_score: analysis.riskScore,
-                scam_percentage: analysis.percentages.scam,
-                suspicious_percentage: analysis.percentages.suspicious,
-                safe_percentage: analysis.percentages.safe,
-                signals_detected: analysis.signals
-              })
-            }
+          if (isUserLoggedIn && msg.trim() !== SAMPLE_MESSAGE.trim()) {
+            await supabase.from('scan_history').insert({
+              user_id: session.user.id,
+              message_text: msg,
+              risk_level: analysis.riskLevel,
+              risk_score: analysis.riskScore,
+              scam_percentage: analysis.percentages.scam,
+              suspicious_percentage: analysis.percentages.suspicious,
+              safe_percentage: analysis.percentages.safe,
+              signals_detected: analysis.signals
+            })
           }
-          saveHistory()
         }
       };
 
