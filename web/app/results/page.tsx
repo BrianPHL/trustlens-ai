@@ -295,7 +295,7 @@ export default function ResultsPage() {
                           <Link href="/auth/signup">Unlock Full Analysis</Link>
                         </Button>
                         <div className="text-sm text-muted-foreground">
-                          Already have an account? <Link href="/auth/login" className="text-primary font-bold hover:underline">Log In</Link>
+                          Already have an account? <Link href="/login" className="text-primary font-bold hover:underline">Log In</Link>
                         </div>
                       </div>
                     </CardContent>
