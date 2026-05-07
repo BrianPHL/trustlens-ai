@@ -683,24 +683,6 @@ const init = async () => {
     };
     h._trustlens_wrapped = true;
   }
-
-  // Support Web App transfer via postMessage
-  window.addEventListener("message", async (event) => {
-    if (event.data && event.data.type === "TRUSTLENS_REQUEST_TRANSFER" && event.data.transferId) {
-      const transferId = event.data.transferId;
-      try {
-        const data = await browser.storage.local.get(transferId);
-        if (data && data[transferId]) {
-          window.postMessage({
-            type: "TRUSTLENS_TRANSFER_PAYLOAD",
-            payload: data[transferId]
-          }, "*");
-        }
-      } catch (err) {
-        console.error("Failed to read transfer payload", err);
-      }
-    }
-  });
 };
 
 const start = () => {
@@ -713,57 +695,79 @@ const start = () => {
   }
 };
 
-// ── Message Listener ────────────────────────────────────────────────
-
-browser.runtime.onMessage.addListener((message) => {
-  if (!message || typeof message !== "object") return undefined;
-
-  switch (message.type) {
-    case MessageType.GET_SELECTED_TEXT: {
-      const text = window.getSelection()?.toString() ?? "";
-      return Promise.resolve({ text });
-    }
-
-    case MessageType.ANALYZE_SELECTED_TEXT: {
-      const text = (message as { text?: string }).text ?? "";
-      if (!text.trim()) {
-        return Promise.resolve(null);
-      }
-      const result = analyzeSelectedText(text);
-      return Promise.resolve(result);
-    }
-
-    case MessageType.SCAN_PAGE: {
-      scanPage();
-      return Promise.resolve({ success: true, analysis: lastAnalysis });
-    }
-
-    case MessageType.CLEAR_HIGHLIGHTS: {
-      clearHighlights();
-      hideTooltip();
-      return Promise.resolve({ success: true });
-    }
-
-    case MessageType.TOGGLE_AUTO_HIGHLIGHT: {
-      const enabled = (message as { enabled?: boolean }).enabled ?? false;
-      handleAutoHighlightToggle(enabled);
-      return Promise.resolve({ success: true });
-    }
-
-    case MessageType.GET_LAST_ANALYSIS: {
-      return Promise.resolve(lastAnalysis);
-    }
-
-    default:
-      return undefined;
-  }
-});
-
 // ── Content Script Entry Point ──────────────────────────────────────
 
 export default defineContentScript({
   matches: ["<all_urls>"],
   main() {
+    const isWebApp = window.location.hostname === 'localhost' || window.location.hostname.includes('trustlens');
+
+    if (isWebApp) {
+      // On the web app, only listen for payload transfer requests
+      window.addEventListener("message", async (event) => {
+        if (event.data && event.data.type === "TRUSTLENS_REQUEST_TRANSFER" && event.data.transferId) {
+          const transferId = event.data.transferId;
+          try {
+            const data = await browser.storage.local.get(transferId);
+            if (data && data[transferId]) {
+              window.postMessage({
+                type: "TRUSTLENS_TRANSFER_PAYLOAD",
+                payload: data[transferId]
+              }, "*");
+            }
+          } catch (err) {
+            console.error("Failed to read transfer payload", err);
+          }
+        }
+      });
+      return;
+    }
+
+    // Only set up message listeners and UI on non-web app pages
+    browser.runtime.onMessage.addListener((message) => {
+      if (!message || typeof message !== "object") return undefined;
+
+      switch (message.type) {
+        case MessageType.GET_SELECTED_TEXT: {
+          const text = window.getSelection()?.toString() ?? "";
+          return Promise.resolve({ text });
+        }
+
+        case MessageType.ANALYZE_SELECTED_TEXT: {
+          const text = (message as { text?: string }).text ?? "";
+          if (!text.trim()) {
+            return Promise.resolve(null);
+          }
+          const result = analyzeSelectedText(text);
+          return Promise.resolve(result);
+        }
+
+        case MessageType.SCAN_PAGE: {
+          scanPage();
+          return Promise.resolve({ success: true, analysis: lastAnalysis });
+        }
+
+        case MessageType.CLEAR_HIGHLIGHTS: {
+          clearHighlights();
+          hideTooltip();
+          return Promise.resolve({ success: true });
+        }
+
+        case MessageType.TOGGLE_AUTO_HIGHLIGHT: {
+          const enabled = (message as { enabled?: boolean }).enabled ?? false;
+          handleAutoHighlightToggle(enabled);
+          return Promise.resolve({ success: true });
+        }
+
+        case MessageType.GET_LAST_ANALYSIS: {
+          return Promise.resolve(lastAnalysis);
+        }
+
+        default:
+          return undefined;
+      }
+    });
+
     start();
   },
 });

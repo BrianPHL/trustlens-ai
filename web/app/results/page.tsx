@@ -74,26 +74,11 @@ function mapExtensionAnalysis(text: string, extAnalysis: any, source?: string): 
       .sort((a: any, b: any) => a.start - b.start);
 
     let cursor = 0;
-    const isPageScan = source === 'page';
-    const CONTEXT_LEN = 60;
 
     for (let i = 0; i < phrasePositions.length; i++) {
       const pp = phrasePositions[i];
       if (pp.start > cursor) {
-        let normalText = text.substring(cursor, pp.start);
-        
-        if (isPageScan) {
-          if (i === 0) {
-            if (normalText.length > CONTEXT_LEN) {
-              normalText = "...\n" + normalText.substring(normalText.length - CONTEXT_LEN);
-            }
-          } else {
-            if (normalText.length > CONTEXT_LEN * 2 + 10) {
-              normalText = normalText.substring(0, CONTEXT_LEN) + "\n\n... [content hidden] ...\n\n" + normalText.substring(normalText.length - CONTEXT_LEN);
-            }
-          }
-        }
-        segments.push({ text: normalText, type: 'normal', isRedFlag: false });
+        segments.push({ text: text.substring(cursor, pp.start), type: 'normal', isRedFlag: false });
       }
       if (pp.start >= cursor) {
         const segmentText = text.substring(pp.start, pp.end);
@@ -109,18 +94,10 @@ function mapExtensionAnalysis(text: string, extAnalysis: any, source?: string): 
       }
     }
     if (cursor < text.length) {
-      let normalText = text.substring(cursor);
-      if (isPageScan && normalText.length > CONTEXT_LEN) {
-        normalText = normalText.substring(0, CONTEXT_LEN) + "\n...";
-      }
-      segments.push({ text: normalText, type: 'normal', isRedFlag: false });
+      segments.push({ text: text.substring(cursor), type: 'normal', isRedFlag: false });
     }
   } else {
-    if (source === 'page' && text.length > 300) {
-      segments.push({ text: text.substring(0, 300) + "\n\n... [page content truncated]", type: 'normal', isRedFlag: false });
-    } else {
-      segments.push({ text, type: 'normal', isRedFlag: false });
-    }
+    segments.push({ text, type: 'normal', isRedFlag: false });
   }
 
   let scamPct = 0;
