@@ -35,10 +35,11 @@ export default function ImmunityRevealPage() {
     const segments = challenge.segments || []
     const signals = challenge.signals || []
     
+    const selectedIndices = new Set(state.selectedIndices)
     // Correct IDs are RedFlags that WERE selected
-    const correctIndices = new Set([...state.selectedIndices].filter((idx: any) => segments[idx]?.isRedFlag))
+    const correctIndices = new Set([...selectedIndices].filter((idx: any) => segments[idx]?.isRedFlag))
     // Missed IDs are RedFlags that were NOT selected
-    const missedIndices = new Set(segments.map((s: any, idx: number) => s.isRedFlag ? idx : -1).filter((idx: number) => idx !== -1 && !state.selectedIndices.has(idx)))
+    const missedIndices = new Set(segments.map((s: any, idx: number) => s.isRedFlag ? idx : -1).filter((idx: number) => idx !== -1 && !selectedIndices.has(idx)))
     
     const totalRedFlags = segments.filter((s: any) => s.isRedFlag).length
     const score = totalRedFlags > 0 ? Math.round((state.correctlyFound / totalRedFlags) * 100) : 100
@@ -46,7 +47,7 @@ export default function ImmunityRevealPage() {
     return { 
       segments, 
       signals, 
-      selectedIndices: state.selectedIndices, 
+      selectedIndices: selectedIndices, 
       correctIndices, 
       missedIndices, 
       score,

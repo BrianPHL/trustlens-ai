@@ -157,27 +157,36 @@ export default function ImmunityModePage() {
   }
 
   const handleNext = () => {
-    if (!currentState.answered) {
-      const isCorrect = (totalRedFlags === 0 && currentState.incorrectlyClicked === 0) || 
-                        (totalRedFlags > 0 && currentState.correctlyFound > 0 && currentState.incorrectlyClicked === 0)
-      
-      if (isCorrect) setScore(prev => prev + 1)
-      
-      setStates(prev => prev.map((s, i) => 
-        i === currentIndex ? { ...s, answered: true, isCorrect } : s
-      ))
-      return
-    }
-
     if (currentIndex < TOTAL_QUESTIONS - 1) {
-      setCurrentIndex(prev => prev+1)
+      setCurrentIndex(prev => prev + 1)
     } else {
       if (typeof window !== 'undefined') {
+        // Calculate final score
+        let finalScore = 0
+        const finalStates = states.map((s, idx) => {
+          const ch = challenges[idx]
+          const redFlags = ch.segments.filter((seg: any) => seg.isRedFlag).length
+          const found = Array.from(s.selectedIndices).filter(i => ch.segments[i].isRedFlag).length
+          const distractors = Array.from(s.selectedIndices).filter(i => ch.segments[i].isDistractor).length
+          
+          const isCorrect = (redFlags === 0 && distractors === 0) || (redFlags > 0 && found > 0 && distractors === 0)
+          if (isCorrect) finalScore++
+          
+          return {
+            ...s,
+            answered: true,
+            isCorrect,
+            selectedIndices: Array.from(s.selectedIndices),
+            correctlyFound: found,
+            incorrectlyClicked: distractors
+          }
+        })
+
         sessionStorage.setItem('trustlens-challenges', JSON.stringify(challenges))
         sessionStorage.setItem('trustlens-immunity-results', JSON.stringify({
-          score: score,
+          score: finalScore,
           total: TOTAL_QUESTIONS,
-          states: states
+          states: finalStates
         }))
       }
       router.push('/immunity-reveal')
@@ -288,14 +297,9 @@ export default function ImmunityModePage() {
                   const isSelected = currentState.selectedIndices.has(idx)
                   
                   let className = "transition-all duration-200 rounded px-1 "
-                  let style = {}
-
-                  if (isSelected || currentState.answered) {
-                    if (segment.isRedFlag) {
-                      className += "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 border-b-2 border-emerald-500 font-medium "
-                    } else if (segment.isDistractor) {
-                      className += "bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 border-b-2 border-red-500 font-medium "
-                    }
+                  
+                  if (isSelected) {
+                    className += "bg-primary/20 text-primary ring-2 ring-primary/40 scale-[1.02] font-medium "
                   } else if (isClickable) {
                     className += "cursor-pointer hover:bg-primary/5 border-b border-dashed border-primary/30 "
                   }
@@ -311,23 +315,6 @@ export default function ImmunityModePage() {
                   )
                 })}
               </div>
-              
-              {currentState.answered && (
-                <div className={`mx-6 mb-6 p-4 rounded-xl flex items-start gap-3 ${currentState.isCorrect ? 'bg-emerald-50 dark:bg-emerald-900/10 border border-emerald-200' : 'bg-red-50 dark:bg-red-900/10 border border-red-200'}`}>
-                  {currentState.isCorrect ? <Zap className="w-5 h-5 text-emerald-500 mt-0.5" /> : <AlertTriangle className="w-5 h-5 text-red-500 mt-0.5" />}
-                  <div>
-                    <p className={`font-bold text-sm ${currentState.isCorrect ? 'text-emerald-700' : 'text-red-700'}`}>
-                      {currentState.isCorrect ? 'Excellent Analysis!' : 'Analysis Incomplete'}
-                    </p>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {totalRedFlags > 0 
-                        ? `This message contained ${totalRedFlags} red flags related to ${challenge.signals.map((s: any) => s.category.toLowerCase()).join(' and ')}.`
-                        : "Correct! This was a safe message with no scam indicators."
-                      }
-                    </p>
-                  </div>
-                </div>
-              )}
             </div>
 
             <div className="flex gap-4">
@@ -336,7 +323,7 @@ export default function ImmunityModePage() {
                 size="lg"
                 className="flex-1 h-14 font-bold rounded-2xl shadow-lg shadow-primary/25 hover:shadow-primary/35 transition-shadow text-base gap-2"
               >
-                {!currentState.answered ? 'Confirm Selections' : (isLastQuestion ? 'View Final Report' : 'Next Challenge')}
+                {isLastQuestion ? 'Complete Challenge' : 'Next Question'}
                 <ChevronRight className="w-4 h-4" />
               </Button>
             </div>
