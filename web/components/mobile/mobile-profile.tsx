@@ -90,7 +90,8 @@ export function MobileProfileView({ user, setUser }: { user: any; setUser: (u: a
   const handleSignOut = async () => {
     await hapticFeedback('medium')
     await supabase.auth.signOut()
-    router.push('/login')
+    router.push('/')
+    router.refresh()
   }
 
   const handleUpdateProfile = async () => {

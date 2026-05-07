@@ -40,6 +40,7 @@ export function Header() {
 
   const handleSignOut = async () => {
     await supabase.auth.signOut()
+    router.push('/')
     router.refresh()
   }
 
@@ -84,6 +85,12 @@ export function Header() {
               <div className="flex items-center gap-3">
                 <Button variant="ghost" asChild className="font-semibold h-11 px-5 rounded-xl">
                   <Link href="/history">Activity</Link>
+                </Button>
+                <Button variant="ghost" asChild className="font-semibold h-11 px-5 rounded-xl border border-border/40 hover:border-primary/20 hover:bg-primary/5 group">
+                  <Link href="/profile" className="flex items-center gap-2">
+                    <User className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
+                    <span>Profile</span>
+                  </Link>
                 </Button>
                 <Button variant="outline" onClick={handleSignOut} className="font-bold h-11 px-5 rounded-xl border-border/60">
                   Logout
@@ -133,6 +140,9 @@ export function Header() {
             <div className="pt-4 mt-2 border-t border-border/40 flex flex-col gap-3">
               {user ? (
                 <>
+                  <Button asChild variant="outline" className="h-12 rounded-xl font-bold">
+                    <Link href="/profile">My Profile</Link>
+                  </Button>
                   <Button asChild variant="outline" className="h-12 rounded-xl font-bold">
                     <Link href="/history">My Scan History</Link>
                   </Button>
