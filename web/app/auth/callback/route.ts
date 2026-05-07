@@ -12,7 +12,9 @@ export async function GET(request: Request) {
     if (!error) {
       return NextResponse.redirect(`${origin}${next}`)
     }
+    console.error('Auth callback error:', error.message)
+    return NextResponse.redirect(`${origin}/login?error=${encodeURIComponent(error.message)}`)
   }
 
-  return NextResponse.redirect(`${origin}/login?error=${encodeURIComponent('Could not authenticate user')}`)
+  return NextResponse.redirect(`${origin}/login?error=${encodeURIComponent('No code provided in callback')}`)
 }
