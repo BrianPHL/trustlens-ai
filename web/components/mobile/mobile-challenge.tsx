@@ -1,7 +1,8 @@
 'use client'
 
 import { useState } from 'react'
-import { Trophy, CheckCircle, XCircle, ArrowRight, RotateCcw, X } from 'lucide-react'
+import { Trophy, CheckCircle, XCircle, ArrowRight, RotateCcw, X, Lock } from 'lucide-react'
+import { motion, AnimatePresence } from 'framer-motion'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
@@ -19,9 +20,9 @@ interface QuestionState {
   isCorrect: boolean | null
 }
 
-// 1. Add the onNavigate prop interface
 interface MobileChallengeProps {
   onNavigate: (tab: string) => void
+  user: any
 }
 
 function buildQuestionSet() {
@@ -33,8 +34,7 @@ function buildQuestionSet() {
   return guaranteed.sort(() => Math.random() - 0.5).slice(0, TOTAL_QUESTIONS)
 }
 
-// 2. Accept the onNavigate prop
-export function MobileChallengeView({ onNavigate }: MobileChallengeProps) {
+export function MobileChallengeView({ onNavigate, user }: MobileChallengeProps) {
   const [questions, setQuestions] = useState(() => buildQuestionSet())
   const [currentIndex, setCurrentIndex] = useState(0)
   const [score, setScore] = useState(0)
@@ -108,59 +108,9 @@ export function MobileChallengeView({ onNavigate }: MobileChallengeProps) {
   const handleExitConfirm = async () => {
     if (isNative) await hapticFeedback('medium')
     setShowExitDialog(false)
-    // 3. Route to home tab instead of router.push
     onNavigate('home')
   }
 
-  // ── Exit dialog overlay ─────────────────────────────────────────
-  const ExitDialog = () => (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center px-6"
-      style={{ background: 'rgba(0,0,0,0.5)' }}
-    >
-      <div className="w-full max-w-sm bg-background rounded-2xl border border-border/50 shadow-xl overflow-hidden">
-        <div className="h-1 w-full bg-destructive/70" />
-        <div className="p-6 space-y-4">
-          <div className="flex flex-col items-center text-center gap-3">
-            <div className="w-14 h-14 rounded-full bg-destructive/10 flex items-center justify-center">
-              <X className="w-7 h-7 text-destructive" />
-            </div>
-            <div>
-              <h2 className="text-lg font-bold text-foreground">Exit Challenge?</h2>
-              <p className="text-sm text-muted-foreground mt-1 leading-relaxed">
-                Your progress will be lost and you'll need to start over. Are you sure you want to exit?
-              </p>
-            </div>
-          </div>
-
-          <div className="bg-muted/40 rounded-xl p-3 flex items-center justify-between text-sm border border-border/30">
-            <span className="text-muted-foreground">Progress so far</span>
-            <span className="font-semibold text-foreground">
-              {currentIndex} / {TOTAL_QUESTIONS} questions
-            </span>
-          </div>
-
-          <div className="flex flex-col gap-2 pt-1">
-            <Button
-              onClick={handleExitConfirm}
-              variant="destructive"
-              className="w-full"
-            >
-              Yes, Exit Challenge
-            </Button>
-            <button
-              onClick={() => setShowExitDialog(false)}
-              className="w-full text-center text-sm text-muted-foreground hover:text-foreground transition-colors py-2"
-            >
-              No, Keep Going
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  )
-
-  // ── Results screen ──────────────────────────────────────────────
   if (showResult) {
     const overallPct = Math.round((score / TOTAL_QUESTIONS) * 100)
     const wrong = states.filter(s => s.answered && !s.isCorrect).length
@@ -255,7 +205,6 @@ export function MobileChallengeView({ onNavigate }: MobileChallengeProps) {
             <RotateCcw className="w-4 h-4" />
             Try Again
           </Button>
-          {/* 4. Route to home tab instead of router.push */}
           <button
             onClick={() => onNavigate('home')}
             className="w-full text-center text-sm text-muted-foreground hover:text-foreground transition-colors py-2"
@@ -267,12 +216,18 @@ export function MobileChallengeView({ onNavigate }: MobileChallengeProps) {
     )
   }
 
-  // ── Question screen ─────────────────────────────────────────────
   return (
-    <>
-      {showExitDialog && <ExitDialog />}
+    <div className="relative min-h-screen">
+      {!user && <LockedOverlay onNavigate={onNavigate} />}
+      {showExitDialog && (
+        <ExitDialog 
+          currentIndex={currentIndex} 
+          onExit={handleExitConfirm} 
+          onCancel={() => setShowExitDialog(false)} 
+        />
+      )}
 
-      <div className="flex flex-col gap-4 p-4 pb-24">
+      <div className={`flex flex-col gap-4 p-4 pb-24 transition-all duration-700 ${!user ? 'blur-md grayscale-[0.3] select-none pointer-events-none' : ''}`}>
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <h1 className="text-2xl font-bold text-foreground">Scam Challenge</h1>
@@ -421,6 +376,92 @@ export function MobileChallengeView({ onNavigate }: MobileChallengeProps) {
           )}
         </div>
       </div>
-    </>
+    </div>
+  )
+}
+
+// ── Locked Overlay (Blur Pattern) ──────────────────────────────
+function LockedOverlay({ onNavigate }: { onNavigate: (tab: string) => void }) {
+  return (
+    <div className="absolute inset-0 z-40 flex flex-col items-center justify-center px-6">
+      <motion.div
+        initial={{ scale: 0.95, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        className="w-full max-w-sm"
+      >
+        <Card className="border-primary/30 shadow-[0_30px_60px_-15px_rgba(0,0,0,0.3)] bg-background/95 backdrop-blur-xl rounded-[2.5rem] overflow-hidden">
+          <div className="h-1.5 w-full bg-primary/70" />
+          <CardContent className="p-8 text-center space-y-6">
+            <div className="inline-flex items-center justify-center w-16 h-16 rounded-[2rem] bg-primary/10 text-primary">
+              <Lock className="w-8 h-8" />
+            </div>
+            <div className="space-y-2">
+              <h2 className="text-2xl font-bold text-foreground tracking-tight">Challenge Locked</h2>
+              <p className="text-sm text-muted-foreground leading-relaxed font-medium">
+                Sign in to start the Scam Immunity challenge and build your personal trust score.
+              </p>
+            </div>
+            <div className="flex flex-col gap-3">
+              <Button onClick={() => window.location.href = '/login'} className="w-full h-14 rounded-2xl font-bold shadow-lg shadow-primary/20">
+                Sign In to Play
+              </Button>
+              <button onClick={() => onNavigate('home')} className="text-sm text-muted-foreground font-semibold hover:text-primary transition-colors">
+                Back to Home
+              </button>
+            </div>
+          </CardContent>
+        </Card>
+      </motion.div>
+    </div>
+  )
+}
+
+// ── Exit dialog overlay ─────────────────────────────────────────
+function ExitDialog({ currentIndex, onExit, onCancel }: { currentIndex: number; onExit: () => void; onCancel: () => void }) {
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center px-6"
+      style={{ background: 'rgba(0,0,0,0.5)' }}
+    >
+      <div className="w-full max-w-sm bg-background rounded-2xl border border-border/50 shadow-xl overflow-hidden">
+        <div className="h-1 w-full bg-destructive/70" />
+        <div className="p-6 space-y-4">
+          <div className="flex flex-col items-center text-center gap-3">
+            <div className="w-14 h-14 rounded-full bg-destructive/10 flex items-center justify-center">
+              <X className="w-7 h-7 text-destructive" />
+            </div>
+            <div>
+              <h2 className="text-lg font-bold text-foreground">Exit Challenge?</h2>
+              <p className="text-sm text-muted-foreground mt-1 leading-relaxed">
+                Your progress will be lost and you'll need to start over. Are you sure you want to exit?
+              </p>
+            </div>
+          </div>
+
+          <div className="bg-muted/40 rounded-xl p-3 flex items-center justify-between text-sm border border-border/30">
+            <span className="text-muted-foreground">Progress so far</span>
+            <span className="font-semibold text-foreground">
+              {currentIndex} / {TOTAL_QUESTIONS} questions
+            </span>
+          </div>
+
+          <div className="flex flex-col gap-2 pt-1">
+            <Button
+              onClick={onExit}
+              variant="destructive"
+              className="w-full"
+            >
+              Yes, Exit Challenge
+            </Button>
+            <button
+              onClick={onCancel}
+              className="w-full text-center text-sm text-muted-foreground hover:text-foreground transition-colors py-2"
+            >
+              No, Keep Going
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
   )
 }

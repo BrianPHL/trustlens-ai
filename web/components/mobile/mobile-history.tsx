@@ -11,7 +11,8 @@ import {
   ShieldCheck,
   Loader2,
   BarChart3,
-  History
+  History,
+  Lock
 } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -49,25 +50,24 @@ const getRiskConfig = (level: string, score: number) => {
   }
 }
 
-export function MobileHistoryView() {
+export function MobileHistoryView({ user }: { user: any }) {
   const supabase = createClient()
   const [history, setHistory] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
   const [activeFilter, setActiveFilter] = useState<'all' | 'high' | 'medium' | 'low'>('all')
 
-  // 1. Unified Fetching Logic
   useEffect(() => {
     async function fetchHistory() {
-      const { data: { session } } = await supabase.auth.getSession()
-      if (!session) {
+      if (!user) {
         setLoading(false)
         return
       }
 
       const { data, error } = await supabase
-        .from('scan_history') // Synced table name
+        .from('scan_history')
         .select('*')
+        .eq('user_id', user.id)
         .order('created_at', { ascending: false })
 
       if (!error && data) {
@@ -76,7 +76,7 @@ export function MobileHistoryView() {
       setLoading(false)
     }
     fetchHistory()
-  }, [])
+  }, [user])
 
   // 2. Feature: Individual Delete (Merged from Web)
   const deleteEntry = async (id: string) => {
@@ -106,6 +106,25 @@ export function MobileHistoryView() {
     return (
       <div className="flex h-screen items-center justify-center bg-background">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    )
+  }
+
+  if (!user) {
+    return (
+      <div className="flex flex-col items-center justify-center h-[80vh] p-8 text-center space-y-6 font-geist">
+        <div className="w-20 h-20 bg-slate-100 dark:bg-slate-900 rounded-[2rem] flex items-center justify-center border border-slate-200 dark:border-slate-800 shadow-sm">
+          <Lock className="w-8 h-8 text-slate-300" />
+        </div>
+        <div className="space-y-2">
+          <h2 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">History Locked</h2>
+          <p className="text-sm text-slate-500 leading-relaxed max-w-[260px]">
+            Log in to your TrustLens account to view your past scans and security alerts across all your devices.
+          </p>
+        </div>
+        <Button onClick={() => window.location.href = '/login'} className="w-full max-w-[200px] h-12 rounded-2xl font-bold shadow-lg shadow-primary/20">
+          Sign In to Unlock
+        </Button>
       </div>
     )
   }

@@ -2,6 +2,8 @@ import type { Metadata, Viewport } from 'next'
 import { Inter, Geist_Mono } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
 import { ThemeProvider } from '@/components/theme-provider'
+import { PlatformProvider } from '@/hooks/use-platform'
+import { Header } from '@/components/header'
 import './globals.css'
 
 const inter = Inter({ 
@@ -56,8 +58,11 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          {children}
-          {process.env.NODE_ENV === 'production' && <Analytics />}
+          <PlatformProvider>
+            <Header />
+            {children}
+            {process.env.NODE_ENV === 'production' && <Analytics />}
+          </PlatformProvider>
         </ThemeProvider>
       </body>
     </html>

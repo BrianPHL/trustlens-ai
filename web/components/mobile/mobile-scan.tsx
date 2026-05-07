@@ -57,7 +57,10 @@ export function MobileScanView() {
   const handleClear = () => {
     setMessage('')
     setResult(null)
-    setPreviewUrl(null)
+    if (previewUrl) {
+      URL.revokeObjectURL(previewUrl)
+      setPreviewUrl(null)
+    }
     if (isNative) hapticFeedback('light')
   }
 
@@ -80,6 +83,9 @@ export function MobileScanView() {
   }
 
   const processFile = async (file: File) => {
+    if (previewUrl) {
+      URL.revokeObjectURL(previewUrl)
+    }
     setPreviewUrl(URL.createObjectURL(file))
     setIsExtracting(true)
     setExtractProgress(0)
@@ -102,6 +108,14 @@ export function MobileScanView() {
       setIsExtracting(false)
     }
   }
+
+  useEffect(() => {
+    return () => {
+      if (previewUrl) {
+        URL.revokeObjectURL(previewUrl)
+      }
+    }
+  }, [previewUrl])
 
   return (
     <div className="flex flex-col gap-5 p-4 pb-24 font-geist bg-background">

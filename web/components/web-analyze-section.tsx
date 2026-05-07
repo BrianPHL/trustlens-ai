@@ -7,14 +7,12 @@ import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { extractTextFromImage } from '@/lib/ocr-engine'
 
-type RiskLevel = 'high' | 'medium' | 'low' | null
-
-interface AnalysisResult {
-  riskLevel: RiskLevel
-  indicators: string[]
-  explanation: string
-  highlightedText: { text: string; type: 'danger' | 'warning' | 'normal' }[]
-}
+import { 
+  analyzeMessage, 
+  type AnalysisResult, 
+  type RiskLevel 
+} from '@/lib/scam-analyzer'
+import { createClient } from '@/lib/supabase/client'
 
 export function WebAnalyzeSection() {
   const [message, setMessage] = useState('')
@@ -52,78 +50,34 @@ export function WebAnalyzeSection() {
     event.target.value = ''
   }
 
-  const analyzeMessage = async () => {
+  const handleAnalyze = async () => {
     if (!message.trim()) return
 
     setIsAnalyzing(true)
     setResult(null)
 
-    // Simulate analysis delay
-    await new Promise(resolve => setTimeout(resolve, 2000))
+    // Simulate analysis delay for UX
+    await new Promise(resolve => setTimeout(resolve, 1500))
 
-    // Simple mock analysis based on keywords
-    const lowerMessage = message.toLowerCase()
-    let riskLevel: RiskLevel = 'low'
-    const indicators: string[] = []
-    const highlightedText: { text: string; type: 'danger' | 'warning' | 'normal' }[] = []
+    const analysis = analyzeMessage(message)
+    setResult(analysis)
 
-    // Parse the message and highlight risky parts
-    const words = message.split(/\s+/)
-    let currentChunk = ''
-    let currentType: 'danger' | 'warning' | 'normal' = 'normal'
-
-    const dangerKeywords = ['otp', 'password', 'pin', 'suspended', 'bit.ly', 'click here']
-    const warningKeywords = ['verify', 'urgent', 'immediately', 'confirm', 'account']
-
-    words.forEach((word, index) => {
-      const lowerWord = word.toLowerCase()
-      let wordType: 'danger' | 'warning' | 'normal' = 'normal'
-
-      if (dangerKeywords.some(k => lowerWord.includes(k))) {
-        wordType = 'danger'
-        if (!indicators.includes('Sensitive data request')) indicators.push('Sensitive data request')
-        riskLevel = 'high'
-      } else if (warningKeywords.some(k => lowerWord.includes(k))) {
-        wordType = 'warning'
-        if (!indicators.includes('Urgency manipulation')) indicators.push('Urgency manipulation')
-        if (riskLevel === 'low') riskLevel = 'medium'
-      }
-
-      if (wordType !== currentType || index === words.length - 1) {
-        if (currentChunk) {
-          highlightedText.push({ text: currentChunk, type: currentType })
-        }
-        currentChunk = word + ' '
-        currentType = wordType
-      } else {
-        currentChunk += word + ' '
-      }
-    })
-
-    if (currentChunk) {
-      highlightedText.push({ text: currentChunk.trim(), type: currentType })
+    // Save to history if logged in
+    const supabase = createClient()
+    const { data: { session } } = await supabase.auth.getSession()
+    
+    if (session?.user) {
+      await supabase.from('scan_history').insert({
+        user_id: session.user.id,
+        message_text: message,
+        risk_level: analysis.riskLevel,
+        risk_score: analysis.riskScore,
+        scam_percentage: analysis.percentages.scam,
+        suspicious_percentage: analysis.percentages.suspicious,
+        safe_percentage: analysis.percentages.safe,
+        signals_detected: analysis.signals
+      })
     }
-
-    if (lowerMessage.includes('http') || lowerMessage.includes('bit.ly')) {
-      if (!indicators.includes('Suspicious link detected')) indicators.push('Suspicious link detected')
-    }
-
-    if (indicators.length === 0) {
-      indicators.push('No immediate red flags detected')
-    }
-
-    const explanations = {
-      high: 'This message contains multiple high-risk indicators commonly found in phishing scams. Do NOT interact with it or click any links.',
-      medium: 'This message contains suspicious elements. We recommend verifying the sender through official channels before taking any action.',
-      low: 'This message appears relatively safe, but always stay vigilant and verify any unexpected requests through official channels.'
-    }
-
-    setResult({
-      riskLevel,
-      indicators,
-      explanation: explanations[riskLevel ?? 'low'],
-      highlightedText
-    })
 
     setIsAnalyzing(false)
   }
@@ -188,7 +142,7 @@ export function WebAnalyzeSection() {
               </div>
               <div className="flex flex-col sm:flex-row gap-3">
                 <Button 
-                  onClick={analyzeMessage}
+                  onClick={handleAnalyze}
                   disabled={!message.trim() || isAnalyzing || isExtracting}
                   className="flex-1 gap-2 h-11 md:h-12 text-sm md:text-base"
                 >
@@ -240,7 +194,7 @@ export function WebAnalyzeSection() {
                 <>
                   {/* Highlighted Text */}
                   <div className="p-4 bg-muted/50 rounded-xl text-sm leading-relaxed">
-                    {result.highlightedText.map((segment, index) => {
+                    {result.segments.map((segment, index) => {
                       if (segment.type === 'danger') {
                         return (
                           <span key={index} className="bg-destructive/15 text-destructive px-1 py-0.5 rounded">
@@ -255,18 +209,18 @@ export function WebAnalyzeSection() {
                           </span>
                         )
                       }
-                      return <span key={index}>{segment.text} </span>
+                      return <span key={index}>{segment.text}</span>
                     })}
                   </div>
 
                   {/* Indicators */}
                   <div className="space-y-2">
-                    <h4 className="text-sm font-medium text-foreground">Detected Indicators</h4>
+                    <h4 className="text-sm font-medium text-foreground">Detected Signals</h4>
                     <ul className="space-y-2">
-                      {result.indicators.map((indicator, index) => (
+                      {result.signals.map((signal, index) => (
                         <li key={index} className="flex items-center gap-2 text-sm text-muted-foreground">
                           <div className={`w-2 h-2 rounded-full ${getRiskConfig(result.riskLevel).bg.replace('/10', '')}`} />
-                          {indicator}
+                          <span className="font-bold text-foreground">{signal.label}:</span> {signal.phrase}
                         </li>
                       ))}
                     </ul>

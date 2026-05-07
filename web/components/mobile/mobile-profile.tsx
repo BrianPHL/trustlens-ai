@@ -40,15 +40,14 @@ const FAQS = [
   }
 ]
 
-export function MobileProfileView() {
+export function MobileProfileView({ user, setUser }: { user: any; setUser: (u: any) => void }) {
   const router = useRouter()
   const supabase = createClient()
   const fileInputRef = useRef<HTMLInputElement>(null)
   
-  const [user, setUser] = useState<any>(null)
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
-  const [fullName, setFullName] = useState('')
+  const [fullName, setFullName] = useState(user?.user_metadata?.full_name || UI_CONFIG.DEFAULT_NAME)
   const [darkMode, setDarkMode] = useState(false)
   const [stats, setStats] = useState({ blocked: 0, score: 0 })
   
@@ -67,16 +66,14 @@ export function MobileProfileView() {
 
   useEffect(() => {
     async function fetchData() {
-      const { data: { user } } = await supabase.auth.getUser()
       if (user) {
-        setUser(user)
         setFullName(user.user_metadata?.full_name || UI_CONFIG.DEFAULT_NAME)
         
         const { count: blockedCount } = await supabase
-          .from('scans')
+          .from('scan_history')
           .select('*', { count: 'exact', head: true })
           .eq('user_id', user.id)
-          .eq('is_scam', true)
+          .eq('risk_level', 'high')
 
         setStats({
           blocked: blockedCount || 0,
@@ -86,7 +83,7 @@ export function MobileProfileView() {
       setLoading(false)
     }
     fetchData()
-  }, [supabase])
+  }, [user])
 
   const handleCameraButtonClick = () => fileInputRef.current?.click()
 
@@ -108,10 +105,38 @@ export function MobileProfileView() {
     setLoading(false)
   }
 
-  if (loading && !user) {
+  if (loading) {
     return (
       <div className="flex flex-col items-center justify-center h-[80vh]">
         <Loader2 className="w-6 h-6 animate-spin text-slate-400" />
+      </div>
+    )
+  }
+
+  // Guest View for Profile
+  if (!user) {
+    return (
+      <div className="flex flex-col gap-8 p-6 pb-28 bg-[#FDFDFD] dark:bg-slate-950 min-h-screen transition-colors duration-300 font-geist">
+        <div className="flex flex-col items-center pt-12 text-center space-y-4">
+          <div className="w-20 h-20 rounded-[2rem] bg-slate-100 dark:bg-slate-900 flex items-center justify-center border border-slate-200 dark:border-slate-800 shadow-sm">
+            <User className="w-10 h-10 text-slate-300" />
+          </div>
+          <div className="space-y-2">
+            <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Join TrustLens</h2>
+            <p className="text-sm text-slate-500 max-w-[240px]">Create an account to sync your history and earn trust rewards.</p>
+          </div>
+          <Button onClick={() => router.push('/login')} className="w-full max-w-[200px] rounded-2xl h-12 font-bold shadow-lg shadow-primary/20">
+            Sign In / Sign Up
+          </Button>
+        </div>
+
+        <section className="space-y-3 pt-4">
+          <h3 className="text-[11px] font-bold text-slate-400 uppercase tracking-[0.2em] ml-2">App Info</h3>
+          <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-[2rem] overflow-hidden shadow-sm">
+            <MenuRow icon={<Moon className="w-4 h-4" />} label="Dark Mode" toggle={<Switch checked={darkMode} onCheckedChange={setDarkMode} />} />
+            <MenuRow icon={<ShieldCheck className="w-4 h-4" />} label="Version" value={UI_CONFIG.VERSION} />
+          </div>
+        </section>
       </div>
     )
   }

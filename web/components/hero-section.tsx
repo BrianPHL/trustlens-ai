@@ -50,28 +50,6 @@ export function HeroSection() {
                 </Link>
               </Button>
             </div>
-
-            {/* Live Stats */}
-            <div className="pt-8 flex flex-wrap gap-6 items-center border-t border-border/50">
-              <div className="flex flex-col">
-                <span className="text-2xl font-bold text-foreground flex items-center gap-1">
-                  124.5k<span className="text-primary">+</span>
-                </span>
-                <span className="text-xs text-muted-foreground uppercase tracking-wider">Scams Detected</span>
-              </div>
-              <div className="w-px h-8 bg-border hidden sm:block" />
-              <div className="flex flex-col">
-                <span className="text-2xl font-bold text-foreground flex items-center gap-1">
-                  ₱85M<span className="text-emerald-500">+</span>
-                </span>
-                <span className="text-xs text-muted-foreground uppercase tracking-wider">Potential Loss Prevented</span>
-              </div>
-              <div className="w-px h-8 bg-border hidden sm:block" />
-              <div className="flex flex-col">
-                <span className="text-2xl font-bold text-foreground">98.2%</span>
-                <span className="text-xs text-muted-foreground uppercase tracking-wider">Detection Accuracy</span>
-              </div>
-            </div>
           </div>
 
           {/* Right Column - Analysis Card */}

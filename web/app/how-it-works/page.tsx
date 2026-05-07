@@ -25,23 +25,7 @@ const stats = [
 export default function HowItWorksPage() {
   return (
     <div className="min-h-screen bg-background text-foreground">
-      {/* Header */}
-      <header className="sticky top-0 z-40 w-full border-b border-border/40 bg-background/80 backdrop-blur-xl">
-        <div className="max-w-[1200px] mx-auto flex h-16 items-center justify-between px-4 md:px-6">
-          <Link href="/" className="flex items-center gap-2 group">
-            <div className="flex items-center justify-center w-8 h-8 bg-primary rounded-lg shadow-lg shadow-primary/30 group-hover:shadow-primary/50 transition-shadow">
-              <Shield className="w-4 h-4 text-primary-foreground" />
-            </div>
-            <span className="font-bold text-lg tracking-tight">TrustLens <span className="text-primary">AI</span></span>
-          </Link>
-          <Link
-            href="/"
-            className="text-sm text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
-          >
-            ← Back to Home
-          </Link>
-        </div>
-      </header>
+
 
       <main className="max-w-[1200px] mx-auto px-4 md:px-6 py-10 md:py-16 space-y-14">
 

@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { Shield, AlertTriangle, Chrome, ExternalLink, Zap, Eye, Lock, Globe } from 'lucide-react'
+import { Shield, AlertTriangle, Chrome, ExternalLink, Zap, Eye, Lock, Globe, Download, Settings, FolderOpen, FileArchive, Info } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 
@@ -28,9 +28,27 @@ const howItWorks = [
   { icon: ExternalLink, step: '04', title: 'Full Analysis', desc: 'One click opens deep-dive report' },
 ]
 
+const installSteps = [
+  { icon: Download, title: 'Download Extension', desc: 'Download the built extension as a ZIP file' },
+  { icon: FileArchive, title: 'Unzip the Folder', desc: 'Extract the contents of the ZIP file to a folder' },
+  { icon: Settings, title: 'Manage Extensions', desc: 'Open Chrome and go to chrome://extensions' },
+  { icon: FolderOpen, title: 'Load Unpacked', desc: 'Enable Developer Mode and click Load Unpacked' },
+  { icon: Shield, title: 'Select Folder', desc: 'Select the unzipped "trustlens-extension" folder' },
+]
+
 export default function ExtensionPage() {
   const [hoveredPhrase, setHoveredPhrase] = useState<number | null>(null)
   const [highlightEnabled, setHighlightEnabled] = useState(true)
+
+  const handleDownload = () => {
+    // Logic for downloading the extension zip
+    const link = document.createElement('a')
+    link.href = '/trustlens-extension.zip'
+    link.download = 'trustlens-extension.zip'
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+  }
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -276,7 +294,7 @@ export default function ExtensionPage() {
             {/* Install card */}
             <Card className="border-border/50 overflow-hidden">
               <div className="h-1 w-full bg-gradient-to-r from-primary via-primary/70 to-primary/30" />
-              <CardContent className="p-5 space-y-5">
+              <CardContent className="p-5 space-y-6">
                 <div>
                   <h3 className="font-bold text-sm mb-1">Browser Extension</h3>
                   <p className="text-xs text-muted-foreground leading-relaxed">
@@ -284,26 +302,39 @@ export default function ExtensionPage() {
                   </p>
                 </div>
 
-                <div className="space-y-3">
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">How it works</p>
-                  {howItWorks.map(({ icon: Icon, step, title, desc }) => (
-                    <div key={step} className="flex items-start gap-3">
-                      <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
-                        <Icon className="w-3.5 h-3.5 text-primary" />
+                <div className="space-y-4">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Installation Steps</p>
+                  <div className="space-y-3">
+                    {installSteps.map(({ icon: Icon, title, desc }, index) => (
+                      <div key={index} className="flex items-start gap-3">
+                        <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
+                          <Icon className="w-3.5 h-3.5 text-primary" />
+                        </div>
+                        <div>
+                          <p className="text-xs font-semibold text-foreground">{title}</p>
+                          <p className="text-[11px] text-muted-foreground leading-snug">{desc}</p>
+                        </div>
                       </div>
-                      <div>
-                        <p className="text-xs font-semibold text-foreground">{title}</p>
-                        <p className="text-[11px] text-muted-foreground">{desc}</p>
-                      </div>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
 
-                <Button className="w-full gap-2 shadow-md shadow-primary/20 hover:shadow-primary/30 transition-shadow">
-                  <Chrome className="w-4 h-4" />
-                  Add to Chrome
-                </Button>
-                <p className="text-[10px] text-muted-foreground text-center">Coming soon · Chrome · Edge · Firefox</p>
+                <div className="pt-2">
+                  <Button 
+                    onClick={handleDownload}
+                    className="w-full gap-2 shadow-md shadow-primary/20 hover:shadow-primary/30 transition-shadow"
+                  >
+                    <Download className="w-4 h-4" />
+                    Download Extension (.zip)
+                  </Button>
+                </div>
+
+                <div className="flex items-start gap-2 p-3 rounded-lg bg-amber-50 dark:bg-amber-900/10 border border-amber-200/50 dark:border-amber-900/30">
+                  <Info className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+                  <p className="text-[10px] text-amber-700 dark:text-amber-300 leading-normal">
+                    <span className="font-bold">Disclaimer:</span> This extension is currently only tested and optimized for Google Chrome environments.
+                  </p>
+                </div>
               </CardContent>
             </Card>
 

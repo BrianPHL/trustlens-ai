@@ -1,14 +1,13 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { PlatformProvider, usePlatform } from '@/hooks/use-platform'
-import { Header } from '@/components/header'
+import { MobileApp } from '@/components/mobile/mobile-app'
+
 import { HeroSection } from '@/components/hero-section'
 import { FeaturesGrid } from '@/components/features-grid'
-import { HowItWorksSection, ScamImmunitySection } from '@/components/web-sections'
 import { WebAnalyzeSection } from '@/components/web-analyze-section'
 import { Footer } from '@/components/footer'
-import { MobileApp } from '@/components/mobile/mobile-app'
+import { usePlatform } from '@/hooks/use-platform'
 
 function AppContent() {
   const { isMobile, isNative } = usePlatform()
@@ -31,7 +30,6 @@ function AppContent() {
   // Web view
   return (
     <div className="flex flex-col min-h-screen">
-      <Header />
       <main className="flex-1">
         <HeroSection />
         <FeaturesGrid />
@@ -43,9 +41,5 @@ function AppContent() {
 }
 
 export default function HomePage() {
-  return (
-    <PlatformProvider>
-      <AppContent />
-    </PlatformProvider>
-  )
+  return <AppContent />
 }

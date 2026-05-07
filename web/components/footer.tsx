@@ -25,31 +25,19 @@ export function Footer() {
           <div>
             <h4 className="font-semibold text-foreground mb-4">Product</h4>
             <ul className="space-y-2">
-              <li><Link href="#product" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Features</Link></li>
-              <li><Link href="#how-it-works" className="text-sm text-muted-foreground hover:text-foreground transition-colors">How It Works</Link></li>
-              <li><Link href="#scam-immunity" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Scam Immunity</Link></li>
-              <li><Link href="#extension" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Browser Extension</Link></li>
+              <li><Link href="/analyze" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Start Scan</Link></li>
+              <li><Link href="/how-it-works" className="text-sm text-muted-foreground hover:text-foreground transition-colors">How It Works</Link></li>
+              <li><Link href="/immunity-mode" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Scam Immunity</Link></li>
+              <li><Link href="/extension" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Browser Extension</Link></li>
             </ul>
           </div>
 
-          {/* Resources */}
+          {/* Account */}
           <div>
-            <h4 className="font-semibold text-foreground mb-4">Resources</h4>
+            <h4 className="font-semibold text-foreground mb-4">Account</h4>
             <ul className="space-y-2">
-              <li><Link href="#" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Documentation</Link></li>
-              <li><Link href="#" className="text-sm text-muted-foreground hover:text-foreground transition-colors">API Reference</Link></li>
-              <li><Link href="#" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Blog</Link></li>
-              <li><Link href="#" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Support</Link></li>
-            </ul>
-          </div>
-
-          {/* Legal */}
-          <div>
-            <h4 className="font-semibold text-foreground mb-4">Legal</h4>
-            <ul className="space-y-2">
-              <li><Link href="#" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Privacy Policy</Link></li>
-              <li><Link href="#" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Terms of Service</Link></li>
-              <li><Link href="#" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Cookie Policy</Link></li>
+              <li><Link href="/login" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Sign In</Link></li>
+              <li><Link href="/history" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Activity History</Link></li>
             </ul>
           </div>
         </div>

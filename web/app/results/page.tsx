@@ -25,118 +25,12 @@ import {
   SAMPLE_MESSAGE, 
   SAMPLE_ANALYSIS,
   type AnalysisResult, 
-  TextSegment
+  TextSegment,
+  mapExtensionAnalysis
 } from '@/lib/scam-analyzer'
 import { createClient } from '@/lib/supabase/client'
 
-function mapExtensionAnalysis(text: string, extAnalysis: any, source?: string): AnalysisResult {
-  const signals = (extAnalysis.matches || []).map((m: any) => {
-    let icon = 'ShieldAlert';
-    const cat = (m.category || '').toLowerCase();
-    if (cat.includes('urgency')) icon = 'Clock';
-    else if (cat.includes('link')) icon = 'Link2';
-    else if (cat.includes('information') || cat.includes('otp')) icon = 'KeyRound';
-    else if (cat.includes('account')) icon = 'ShieldAlert';
-    else if (cat.includes('impersonation')) icon = 'UserX';
-    else if (cat.includes('prize') || cat.includes('reward')) icon = 'Gift';
-    else if (cat.includes('payment')) icon = 'CreditCard';
-    else if (cat.includes('isolation')) icon = 'VolumeX';
-
-    return {
-      id: m.id || Math.random().toString(),
-      category: m.category || 'Unknown',
-      label: m.category || 'Unknown',
-      phrase: m.matchedText || '',
-      severity: m.severity === 'high' ? 'critical' : (m.severity === 'medium' ? 'high' : 'medium'),
-      explanation: m.explanation || m.category,
-      tip: m.tip || 'Proceed with caution.',
-      icon
-    };
-  });
-
-  const segments: TextSegment[] = [];
-  if (signals.length > 0) {
-    const phrasePositions = (extAnalysis.matches || [])
-      .map((m: any, idx: number) => {
-        let start = -1;
-        let end = -1;
-        if (m.matchedText) {
-          const matchStr = m.matchedText.toLowerCase();
-          const fullStr = text.toLowerCase();
-          const foundIdx = fullStr.indexOf(matchStr);
-          if (foundIdx !== -1) {
-            start = foundIdx;
-            end = foundIdx + m.matchedText.length;
-          }
-        }
-        return { signal: signals[idx], start, end };
-      })
-      .filter((p: any) => p.start !== -1)
-      .sort((a: any, b: any) => a.start - b.start);
-
-    let cursor = 0;
-
-    for (let i = 0; i < phrasePositions.length; i++) {
-      const pp = phrasePositions[i];
-      if (pp.start > cursor) {
-        segments.push({ text: text.substring(cursor, pp.start), type: 'normal', isRedFlag: false });
-      }
-      if (pp.start >= cursor) {
-        const segmentText = text.substring(pp.start, pp.end);
-        if (segmentText.length > 0) {
-          segments.push({
-            text: segmentText,
-            type: pp.signal.severity === 'critical' || pp.signal.severity === 'high' ? 'danger' : 'warning',
-            signalId: pp.signal.id,
-            isRedFlag: true
-          });
-          cursor = pp.end;
-        }
-      }
-    }
-    if (cursor < text.length) {
-      segments.push({ text: text.substring(cursor), type: 'normal', isRedFlag: false });
-    }
-  } else {
-    segments.push({ text, type: 'normal', isRedFlag: false });
-  }
-
-  let scamPct = 0;
-  let susPct = 0;
-  let safePct = 100;
-
-  if (extAnalysis.riskLevel === 'high') {
-    scamPct = Math.min(extAnalysis.riskScore, 85);
-    susPct = Math.min(100 - scamPct, 15);
-    safePct = Math.max(0, 100 - scamPct - susPct);
-  } else if (extAnalysis.riskLevel === 'medium') {
-    scamPct = Math.floor(extAnalysis.riskScore * 0.4);
-    susPct = Math.floor(extAnalysis.riskScore * 0.5);
-    safePct = Math.max(0, 100 - scamPct - susPct);
-  } else {
-    scamPct = 3;
-    susPct = 5;
-    safePct = 92;
-  }
-
-  return {
-    riskLevel: extAnalysis.riskLevel || 'low',
-    riskScore: extAnalysis.riskScore || 0,
-    percentages: { safe: safePct, suspicious: susPct, scam: scamPct },
-    signals,
-    segments,
-    explanation: extAnalysis.summary || (extAnalysis.riskLevel === 'high' ? 'High risk message detected.' : 'Message analyzed.'),
-    confidence: signals.length === 0 ? 45 : Math.min(70 + signals.length * 4, 98),
-    recommendedActions: signals.length === 0 
-      ? [{ number: 1, title: 'Stay vigilant', description: 'Always verify unexpected requests through official channels.' }]
-      : [
-          { number: 1, title: 'Do not click any links', description: 'Links may lead to fake pages designed to steal your credentials.' },
-          { number: 2, title: 'Do not share OTP, password, or PIN', description: 'Legitimate services never ask for these via unsolicited messages.' },
-          { number: 3, title: 'Verify through official channels', description: 'Open the official app directly or visit the official website.' },
-          { number: 4, title: 'Report and block the sender', description: 'Help protect others by reporting this to your carrier.' }
-        ]
-  };
-}
+// mapExtensionAnalysis removed (moved to shared lib)
 
 export default function ResultsPage() {
   const [result, setResult] = useState<AnalysisResult>(SAMPLE_ANALYSIS)
@@ -284,24 +178,7 @@ export default function ResultsPage() {
 
   return (
     <div className="min-h-screen bg-background font-geist">
-      <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="container flex h-16 items-center justify-between px-4 md:px-6">
-          <Link href="/" className="flex items-center gap-2">
-            <div className="flex items-center justify-center w-8 h-8 bg-primary rounded-lg text-primary-foreground">
-              <Shield className="w-5 h-5" />
-            </div>
-            <span className="font-semibold text-lg text-foreground">TrustLens AI</span>
-          </Link>
-          <div className="flex items-center gap-4">
-            <Link href="/analyze" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
-              Analyze Another
-            </Link>
-            <Link href="/" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
-              Home
-            </Link>
-          </div>
-        </div>
-      </header>
+
 
       <main className="max-w-[1200px] mx-auto px-4 md:px-6 py-8 md:py-12">
         <div className="mb-8">

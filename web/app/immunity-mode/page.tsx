@@ -3,13 +3,17 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Shield, Target, Info, XCircle, Forward, Zap, AlertTriangle, ChevronRight } from 'lucide-react'
+import { Shield, Target, Info, XCircle, Forward, Zap, AlertTriangle, ChevronRight, Lock } from 'lucide-react'
+import { motion, AnimatePresence } from 'framer-motion'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { HighlightedText } from '@/components/shared/highlighted-text'
 import { getRandomChallenge, analyzeMessage, type AnalysisResult } from '@/lib/scam-analyzer'
 import Swal from 'sweetalert2'
 import withReactContent from 'sweetalert2-react-content'
+import { createClient } from '@/lib/supabase/client'
+import { Loader2 } from 'lucide-react'
+import * as LucideIcons from 'lucide-react'
 
 const MySwal = withReactContent(Swal)
 const TOTAL_QUESTIONS = 10
@@ -30,15 +34,38 @@ export default function ImmunityModePage() {
   const [allSelections, setAllSelections] = useState<string[][]>([])
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
 
+  const [loading, setLoading] = useState(true)
+  const [user, setUser] = useState<any>(null)
+  const [isGuest, setIsGuest] = useState(false)
+
   useEffect(() => {
-    const generated: AnalysisResult[] = []
-    for (let i = 0; i < TOTAL_QUESTIONS; i++) {
-      const randomChallenge = getRandomChallenge()
-      const analysis = analyzeMessage(randomChallenge.message)
-      generated.push(analysis)
+    const init = async () => {
+      const supabase = createClient()
+      const { data: { session } } = await supabase.auth.getSession()
+      
+      setUser(session?.user ?? null)
+      setIsGuest(!session?.user)
+
+      const generated: AnalysisResult[] = []
+      for (let i = 0; i < TOTAL_QUESTIONS; i++) {
+        const randomChallenge = getRandomChallenge()
+        const analysis = analyzeMessage(randomChallenge.message)
+        generated.push(analysis)
+      }
+      setChallenges(generated)
+      setLoading(false)
     }
-    setChallenges(generated)
+    init()
   }, [])
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center text-muted-foreground">
+        <Loader2 className="w-8 h-8 animate-spin mb-4 text-primary" />
+        <p className="animate-pulse tracking-widest uppercase text-xs font-bold">Securing session...</p>
+      </div>
+    )
+  }
 
   const challenge = challenges[currentIndex] ?? null
   const segments = challenge?.segments || []
@@ -104,31 +131,42 @@ export default function ImmunityModePage() {
     <div className="min-h-screen bg-background text-foreground">
 
       {/* Header */}
-      <header className="sticky top-0 z-40 w-full border-b border-border/40 bg-background/80 backdrop-blur-xl">
-        <div className="max-w-[1200px] mx-auto flex h-16 items-center justify-between px-4 md:px-6">
-          <Link href="/" className="flex items-center gap-2 group">
-            <div className="flex items-center justify-center w-8 h-8 bg-primary rounded-lg shadow-lg shadow-primary/30 group-hover:shadow-primary/50 transition-shadow">
-              <Shield className="w-4 h-4 text-primary-foreground" />
-            </div>
-            <span className="font-bold text-lg tracking-tight">
-              TrustLens <span className="text-primary">AI</span>
-            </span>
-          </Link>
-          <div className="flex items-center gap-3">
-            <Link href="/results" className="hidden md:block text-sm text-muted-foreground hover:text-foreground transition-colors">
-              Back to Results
-            </Link>
-            <button
-              onClick={handleExit}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 border border-red-200 dark:border-red-900/50 transition-colors"
-            >
-              <XCircle className="w-4 h-4" /> Exit
-            </button>
-          </div>
-        </div>
-      </header>
 
-      <main className="max-w-[1200px] mx-auto px-4 md:px-6 py-8 md:py-12 space-y-8">
+
+      <main className="max-w-[1200px] mx-auto px-4 md:px-6 py-8 md:py-12 space-y-8 relative">
+        
+        {isGuest && (
+          <div className="absolute inset-0 z-30 flex flex-col items-center justify-start pt-40 px-4">
+            <motion.div 
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              className="w-full max-w-[440px]"
+            >
+              <Card className="border-primary/30 shadow-[0_30px_60px_-15px_rgba(0,0,0,0.3)] bg-background/95 backdrop-blur-xl">
+                <CardContent className="p-8 md:p-10 text-center">
+                  <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-primary/10 mb-6 text-primary">
+                    <Lock className="w-7 h-7" />
+                  </div>
+                  <h3 className="text-2xl font-bold mb-3 tracking-tight">Challenge Locked</h3>
+                  <p className="text-sm text-muted-foreground mb-8 leading-relaxed px-2 font-medium">
+                    Scam Immunity Challenge is a premium feature. Sign in to test your skills and track your progress in real-time.
+                  </p>
+                  <div className="flex flex-col gap-4">
+                    <Button asChild size="lg" className="w-full h-12 text-md font-bold shadow-md shadow-primary/20">
+                      <Link href="/login?next=/immunity-mode">Unlock Challenge</Link>
+                    </Button>
+                    <div className="text-sm text-muted-foreground">
+                      Already have an account? <Link href="/login" className="text-primary font-bold hover:underline">Log In</Link>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </motion.div>
+          </div>
+        )}
+
+        <div className={`space-y-8 transition-all duration-700 ${isGuest ? 'opacity-40 blur-md select-none pointer-events-none grayscale-[0.2]' : ''}`}>
+
 
         {/* Hero Progress Banner */}
         <section className="relative rounded-2xl overflow-hidden border border-primary/20 bg-gradient-to-br from-primary via-primary/90 to-indigo-600 p-6 md:p-8 text-white shadow-xl shadow-primary/20">
@@ -229,7 +267,7 @@ export default function ImmunityModePage() {
                 {[...selectedIds].map(id => {
                   const signal = signals.find(s => s.id === id)
                   if (!signal) return null
-                  const IconComponent = (require('lucide-react') as any)[signal.icon] || AlertTriangle
+                  const IconComponent = (LucideIcons as any)[signal.icon] || AlertTriangle
                   return (
                     <span
                       key={id}
@@ -366,6 +404,7 @@ export default function ImmunityModePage() {
               <div className="ml-auto w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
             </div>
           </aside>
+        </div>
         </div>
       </main>
     </div>
