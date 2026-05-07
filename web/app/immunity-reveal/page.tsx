@@ -5,56 +5,55 @@ import Link from 'next/link'
 import { Shield, CheckCircle, XCircle, Lightbulb, ChevronLeft, ChevronRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-import { HighlightedText } from '@/components/shared/highlighted-text'
-import { type AnalysisResult } from '@/lib/scam-analyzer'
 
 export default function ImmunityRevealPage() {
-  const [challenges, setChallenges] = useState<AnalysisResult[]>([])
-  const [allSelections, setAllSelections] = useState<string[][]>([])
+  const [challenges, setChallenges] = useState<any[]>([])
+  const [questionStates, setQuestionStates] = useState<any[]>([])
   const [viewIndex, setViewIndex] = useState(0)
 
   useEffect(() => {
     if (typeof window === 'undefined') return
 
     const storedChallenges = sessionStorage.getItem('trustlens-challenges')
-    const storedAllSelections = sessionStorage.getItem('trustlens-all-selections')
+    const storedResults = sessionStorage.getItem('trustlens-immunity-results')
 
-    if (storedChallenges && storedAllSelections) {
+    if (storedChallenges && storedResults) {
       try {
         setChallenges(JSON.parse(storedChallenges))
-        setAllSelections(JSON.parse(storedAllSelections))
+        const results = JSON.parse(storedResults)
+        setQuestionStates(results.states)
         return
-      } catch {}
-    }
-
-    const storedChallenge = sessionStorage.getItem('trustlens-challenge')
-    const storedSelected = sessionStorage.getItem('trustlens-selected')
-    if (storedChallenge && storedSelected) {
-      try {
-        setChallenges([JSON.parse(storedChallenge)])
-        setAllSelections([JSON.parse(storedSelected)])
       } catch {}
     }
   }, [])
 
   const getQuestionStats = (index: number) => {
     const challenge = challenges[index]
-    if (!challenge) return null
+    const state = questionStates[index]
+    if (!challenge || !state) return null
+
     const segments = challenge.segments || []
     const signals = challenge.signals || []
-    const selectedIds = new Set(allSelections[index] || [])
-    const allRedFlagIds = new Set(
-      segments.filter(s => s.isRedFlag && s.signalId).map(s => s.signalId!)
-    )
-    const correctIds = new Set([...selectedIds].filter(id => allRedFlagIds.has(id)))
-    const missedIds = new Set([...allRedFlagIds].filter(id => !selectedIds.has(id)))
-    const score = allRedFlagIds.size > 0 ? Math.round((correctIds.size / allRedFlagIds.size) * 100) : 100
-    const breakdown = signals.filter(s => allRedFlagIds.has(s.id)).map(s => ({
-      ...s,
-      found: selectedIds.has(s.id),
-    }))
-    const missedSignals = signals.filter(s => missedIds.has(s.id))
-    return { segments, signals, selectedIds, allRedFlagIds, correctIds, missedIds, score, breakdown, missedSignals }
+    
+    // Correct IDs are RedFlags that WERE selected
+    const correctIndices = new Set([...state.selectedIndices].filter(idx => segments[idx]?.isRedFlag))
+    // Missed IDs are RedFlags that were NOT selected
+    const missedIndices = new Set(segments.map((s, idx) => s.isRedFlag ? idx : -1).filter(idx => idx !== -1 && !state.selectedIndices.has(idx)))
+    
+    const totalRedFlags = segments.filter(s => s.isRedFlag).length
+    const score = totalRedFlags > 0 ? Math.round((state.correctlyFound / totalRedFlags) * 100) : 100
+    
+    return { 
+      segments, 
+      signals, 
+      selectedIndices: state.selectedIndices, 
+      correctIndices, 
+      missedIndices, 
+      score,
+      totalRedFlags,
+      correctlyFound: state.correctlyFound,
+      incorrectlyClicked: state.incorrectlyClicked
+    }
   }
 
   const aggregateStats = challenges.reduce(
@@ -62,9 +61,9 @@ export default function ImmunityRevealPage() {
       const q = getQuestionStats(i)
       if (!q) return acc
       return {
-        totalCorrect: acc.totalCorrect + q.correctIds.size,
-        totalMissed: acc.totalMissed + q.missedIds.size,
-        totalFlags: acc.totalFlags + q.allRedFlagIds.size,
+        totalCorrect: acc.totalCorrect + q.correctlyFound,
+        totalMissed: acc.totalMissed + q.missedIndices.size,
+        totalFlags: acc.totalFlags + q.totalRedFlags,
       }
     },
     { totalCorrect: 0, totalMissed: 0, totalFlags: 0 }
@@ -138,7 +137,7 @@ export default function ImmunityRevealPage() {
                         onClick={() => setViewIndex(i)}
                         className={`w-8 h-8 rounded-full text-xs font-semibold transition-all border-2 ${
                           viewIndex === i
-                            ? `${dotColor} text-white border-transparent scale-110` // FIXED
+                            ? `${dotColor} text-white border-transparent scale-110`
                             : 'bg-muted text-muted-foreground border-transparent hover:border-primary'
                         }`}
                       >
@@ -167,7 +166,7 @@ export default function ImmunityRevealPage() {
                 <div>
                   <p className="text-sm font-medium">Question {viewIndex + 1}</p>
                   <p className="text-xs text-muted-foreground">
-                    {current.correctIds.size} correct · {current.missedIds.size} missed
+                    {current.correctlyFound} correct · {current.missedIndices.size} missed
                   </p>
                 </div>
               </div>
@@ -175,28 +174,37 @@ export default function ImmunityRevealPage() {
 
             <div className="space-y-3">
               <h2 className="text-lg font-semibold">Message Analysis</h2>
-              {current && !isLoading ? (
-                <HighlightedText
-                  segments={current.segments}
-                  revealMode
-                  correctIds={current.correctIds}
-                  missedIds={current.missedIds}
-                />
-              ) : (
-                <div className="h-40 bg-muted/30 rounded-xl animate-pulse" />
-              )}
+              <div className="p-6 bg-muted/30 rounded-xl text-lg leading-relaxed">
+                {current?.segments.map((segment: any, idx: number) => {
+                  const isCorrect = current.correctIndices.has(idx)
+                  const isMissed = current.missedIndices.has(idx)
+                  const isIncorrect = current.selectedIndices.has(idx) && !segment.isRedFlag
+
+                  let className = "transition-all duration-200 rounded px-1 "
+                  if (isCorrect) className += "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 border-b-2 border-emerald-500 font-medium "
+                  else if (isMissed) className += "bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 border-b-2 border-amber-500 font-medium "
+                  else if (isIncorrect) className += "bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 border-b-2 border-red-500 font-medium "
+                  else className += "text-muted-foreground"
+
+                  return (
+                    <span key={idx} className={className}>
+                      {segment.text}
+                    </span>
+                  )
+                })}
+              </div>
               <div className="flex gap-4 text-xs text-muted-foreground">
                 <span className="flex items-center gap-1">
                   <span className="w-3 h-3 rounded bg-emerald-200 dark:bg-emerald-800 inline-block" />
                   Correctly identified
                 </span>
                 <span className="flex items-center gap-1">
-                  <span className="w-3 h-3 rounded bg-red-200 dark:bg-red-800 inline-block" />
+                  <span className="w-3 h-3 rounded bg-amber-200 dark:bg-amber-800 inline-block" />
                   Missed red flag
                 </span>
                 <span className="flex items-center gap-1">
-                  <span className="w-3 h-3 rounded bg-muted inline-block" />
-                  Normal text
+                  <span className="w-3 h-3 rounded bg-red-200 dark:bg-red-800 inline-block" />
+                  False Alarm
                 </span>
               </div>
             </div>
@@ -206,41 +214,46 @@ export default function ImmunityRevealPage() {
                 <CardContent className="p-6">
                   <h3 className="font-semibold mb-4">Detailed Breakdown</h3>
                   <div className="space-y-3">
-                    {current.breakdown.map((item) => (
-                      <div
-                        key={item.id}
-                        className={`flex items-center gap-3 p-3 rounded-xl ${
-                          item.found
-                            ? 'bg-emerald-50 dark:bg-emerald-950/30'
-                            : 'bg-red-50 dark:bg-red-950/30'
-                        }`}
-                      >
-                        {item.found ? (
-                          <CheckCircle className="w-5 h-5 text-emerald-500 shrink-0" />
-                        ) : (
-                          <XCircle className="w-5 h-5 text-red-500 shrink-0" />
-                        )}
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-foreground">{item.category}</p>
-                          <p className="text-xs text-muted-foreground truncate">&ldquo;{item.phrase}&rdquo;</p>
+                    {current.signals.map((signal: any, i: number) => {
+                      const isFound = [...current.correctIndices].some(idx => current.segments[idx]?.text.includes(signal.phrase) || signal.phrase.includes(current.segments[idx]?.text))
+                      // Use a simpler approach to check if found: did they click any segment that overlaps with this signal?
+                      // Actually, let's just use the signal list and see if they clicked the corresponding segments.
+                      return (
+                        <div
+                          key={i}
+                          className={`flex items-center gap-3 p-3 rounded-xl ${
+                            isFound
+                              ? 'bg-emerald-50 dark:bg-emerald-950/30'
+                              : 'bg-amber-50 dark:bg-amber-950/30'
+                          }`}
+                        >
+                          {isFound ? (
+                            <CheckCircle className="w-5 h-5 text-emerald-500 shrink-0" />
+                          ) : (
+                            <XCircle className="w-5 h-5 text-amber-500 shrink-0" />
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-foreground">{signal.category}</p>
+                            <p className="text-xs text-muted-foreground truncate">&ldquo;{signal.phrase}&rdquo;</p>
+                          </div>
+                          <span className={`text-xs font-semibold ${isFound ? 'text-emerald-600' : 'text-amber-600'}`}>
+                            {isFound ? 'Correct' : 'Missed'}
+                          </span>
                         </div>
-                        <span className={`text-xs font-semibold ${item.found ? 'text-emerald-600' : 'text-red-600'}`}>
-                          {item.found ? 'Correct' : 'Missed'}
-                        </span>
-                      </div>
-                    ))}
+                      )
+                    })}
                   </div>
                 </CardContent>
               </Card>
             )}
 
-            {current && current.missedSignals.length > 0 && (
+            {current && current.missedIndices.size > 0 && (
               <div className="space-y-3">
                 <h2 className="text-lg font-semibold flex items-center gap-2">
                   <Lightbulb className="w-5 h-5 text-amber-500" />
                   Personalized Tips
                 </h2>
-                {current.missedSignals.map((signal) => (
+                {current.signals.filter((s: any) => ![...current.correctIndices].some(idx => current.segments[idx]?.text.includes(s.phrase))).map((signal: any) => (
                   <Card
                     key={signal.id}
                     className="border-amber-200 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-950/20"

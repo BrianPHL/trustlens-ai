@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
 import { hapticFeedback, hapticNotification } from '@/lib/capacitor'
 import { usePlatform } from '@/hooks/use-platform'
-import { CHALLENGES } from '@/lib/scam-analyzer'
+import { CHALLENGES, analyzeMessage, TextSegment } from '@/lib/scam-analyzer'
 
 const TOTAL_QUESTIONS = 10
 const SAFE_IDS = new Set(['legit-bank', 'legit-delivery'])
@@ -16,7 +16,9 @@ const SAFE_IDS = new Set(['legit-bank', 'legit-delivery'])
 interface QuestionState {
   answered: boolean
   skipped: boolean
-  userAnswer: boolean | null
+  selectedIndices: Set<number>
+  correctlyFound: number
+  incorrectlyClicked: number
   isCorrect: boolean | null
 }
 
@@ -43,7 +45,9 @@ export function MobileChallengeView({ onNavigate, user }: MobileChallengeProps) 
     Array(TOTAL_QUESTIONS).fill(null).map(() => ({
       answered: false,
       skipped: false,
-      userAnswer: null,
+      selectedIndices: new Set(),
+      correctlyFound: 0,
+      incorrectlyClicked: 0,
       isCorrect: null,
     }))
   )
@@ -53,20 +57,78 @@ export function MobileChallengeView({ onNavigate, user }: MobileChallengeProps) 
 
   const currentChallenge = questions[currentIndex]
   const currentState = states[currentIndex]
-  const isScam = !SAFE_IDS.has(currentChallenge?.id)
+  
+  const [analysis, setAnalysis] = useState<any>(null)
+
+  useEffect(() => {
+    const res = analyzeMessage(currentChallenge.message)
+    const newSegments = [...res.segments]
+    let distractorCount = 0
+    
+    for (let i = 0; i < newSegments.length && distractorCount < 2; i++) {
+      if (!newSegments[i].isRedFlag && newSegments[i].text.length > 25) {
+        const words = newSegments[i].text.trim().split(/\s+/)
+        if (words.length > 6) {
+          const start = Math.floor(Math.random() * (words.length - 3))
+          const distractorText = words.slice(start, start + 2).join(' ')
+          const before = words.slice(0, start).join(' ')
+          const after = words.slice(start + 2).join(' ')
+          
+          const injected: any[] = []
+          if (before) injected.push({ text: before + ' ', type: 'normal', isRedFlag: false })
+          injected.push({ text: distractorText, type: 'normal', isRedFlag: false, isDistractor: true })
+          if (after) injected.push({ text: ' ' + after, type: 'normal', isRedFlag: false })
+          
+          newSegments.splice(i, 1, ...injected)
+          distractorCount++
+          i += injected.length - 1
+        }
+      }
+    }
+    setAnalysis({ ...res, segments: newSegments })
+  }, [currentIndex, currentChallenge])
+
+  const totalRedFlags = analysis?.segments?.filter((s: any) => s.isRedFlag).length || 0
   const progress = (currentIndex / TOTAL_QUESTIONS) * 100
 
-  const handleAnswer = async (answer: boolean) => {
+  const handleSegmentClick = async (index: number) => {
     if (currentState.answered) return
-    const isCorrect = answer === isScam
+    
+    const segment = analysis.segments[index] as any
+    if (!segment.isRedFlag && !segment.isDistractor) return
+    if (currentState.selectedIndices.has(index)) return
+
+    if (isNative) await hapticFeedback('medium')
+
+    const isCorrect = segment.isRedFlag
+    
+    setStates(prev => prev.map((s, i) => {
+      if (i !== currentIndex) return s
+      const newSelected = new Set(s.selectedIndices)
+      newSelected.add(index)
+      
+      const correctlyFound = isCorrect ? s.correctlyFound + 1 : s.correctlyFound
+      const incorrectlyClicked = !isCorrect ? s.incorrectlyClicked + 1 : s.incorrectlyClicked
+      
+      return { ...s, selectedIndices: newSelected, correctlyFound, incorrectlyClicked }
+    }))
+  }
+
+  const handleDone = async () => {
+    if (isNative) await hapticFeedback('medium')
+    
+    const isCorrect = (totalRedFlags === 0 && currentState.incorrectlyClicked === 0) || 
+                      (totalRedFlags > 0 && currentState.correctlyFound > 0 && currentState.incorrectlyClicked === 0)
+
     if (isCorrect) {
       setScore(prev => prev + 1)
       if (isNative) await hapticNotification('success')
     } else {
       if (isNative) await hapticNotification('error')
     }
+
     setStates(prev => prev.map((s, i) =>
-      i === currentIndex ? { ...s, answered: true, userAnswer: answer, isCorrect } : s
+      i === currentIndex ? { ...s, answered: true, isCorrect } : s
     ))
   }
 
@@ -100,7 +162,12 @@ export function MobileChallengeView({ onNavigate, user }: MobileChallengeProps) 
     setScore(0)
     setSkipped(0)
     setStates(Array(TOTAL_QUESTIONS).fill(null).map(() => ({
-      answered: false, skipped: false, userAnswer: null, isCorrect: null,
+      answered: false,
+      skipped: false,
+      selectedIndices: new Set(),
+      correctlyFound: 0,
+      incorrectlyClicked: 0,
+      isCorrect: null,
     })))
     setShowResult(false)
   }
@@ -273,95 +340,93 @@ export function MobileChallengeView({ onNavigate, user }: MobileChallengeProps) 
         <Card className="border-border/50">
           <CardContent className="p-4 space-y-3">
             <div className="flex items-center justify-between">
-              <p className="text-sm text-muted-foreground font-medium">Is this message a scam?</p>
+              <p className="text-sm text-muted-foreground font-medium">Click all the Scam Signals (Red Flags)</p>
               <span className="text-xs px-2 py-0.5 bg-muted rounded-full text-muted-foreground">
                 {currentChallenge?.platform}
               </span>
             </div>
-            <div className="p-4 bg-muted/50 rounded-xl">
-              <p className="text-sm text-foreground leading-relaxed">
-                {currentChallenge?.message}
-              </p>
+            <div className="p-4 bg-muted/30 rounded-xl leading-relaxed text-sm">
+              {analysis?.segments?.map((segment: any, idx: number) => {
+                const isClickable = segment.isRedFlag || segment.isDistractor
+                const isSelected = currentState.selectedIndices.has(idx)
+                
+                let bgColor = 'transparent'
+                let textColor = 'inherit'
+                let decoration = 'none'
+
+                if (isSelected || currentState.answered) {
+                  if (segment.isRedFlag) {
+                    bgColor = 'rgba(16, 185, 129, 0.2)'
+                    textColor = 'rgb(5, 150, 105)'
+                    decoration = 'underline wavy'
+                  } else if (segment.isDistractor) {
+                    bgColor = 'rgba(239, 68, 68, 0.2)'
+                    textColor = 'rgb(220, 38, 38)'
+                  }
+                } else if (isClickable) {
+                  bgColor = 'rgba(99, 102, 241, 0.08)'
+                  decoration = 'underline decoration-dotted decoration-primary/30 underline-offset-4'
+                }
+
+                return (
+                  <span
+                    key={idx}
+                    onClick={() => handleSegmentClick(idx)}
+                    className={`transition-all duration-200 rounded px-0.5 ${isClickable ? 'cursor-pointer' : ''}`}
+                    style={{ backgroundColor: bgColor, color: textColor, textDecoration: decoration }}
+                  >
+                    {segment.text}
+                  </span>
+                )
+              })}
             </div>
-            {currentChallenge?.difficulty && (
-              <div className="flex items-center gap-1.5">
-                <span className="text-xs text-muted-foreground">Difficulty:</span>
-                <span className={`text-xs font-medium capitalize px-2 py-0.5 rounded-full ${
-                  currentChallenge.difficulty === 'easy' ? 'bg-emerald-500/10 text-emerald-600' :
-                  currentChallenge.difficulty === 'medium' ? 'bg-amber-500/10 text-amber-600' :
-                  'bg-destructive/10 text-destructive'
-                }`}>
-                  {currentChallenge.difficulty}
-                </span>
+            
+            {currentState.answered && (
+              <div className={`text-xs font-bold py-2 px-3 rounded-lg flex items-center gap-2 ${currentState.isCorrect ? 'bg-emerald-500/10 text-emerald-600' : 'bg-destructive/10 text-destructive'}`}>
+                {currentState.isCorrect ? <CheckCircle className="w-4 h-4" /> : <XCircle className="w-4 h-4" />}
+                {currentState.isCorrect 
+                  ? (totalRedFlags === 0 ? "Correct! This was a safe message." : "Great job! You spotted the red flags.") 
+                  : (totalRedFlags === 0 ? "Incorrect. This message was actually safe." : "Missed some flags or clicked safe phrases.")
+                }
               </div>
             )}
           </CardContent>
         </Card>
 
         {!currentState.answered && !currentState.skipped && (
-          <div className="grid grid-cols-2 gap-3">
-            <Button
-              variant="outline"
-              size="lg"
-              onClick={() => handleAnswer(true)}
-              className="h-16 border-destructive/30 hover:bg-destructive/10 hover:border-destructive"
-            >
-              <div className="flex flex-col items-center gap-1">
-                <XCircle className="w-5 h-5 text-destructive" />
-                <span className="text-sm font-medium">It&apos;s a Scam</span>
-              </div>
-            </Button>
-            <Button
-              variant="outline"
-              size="lg"
-              onClick={() => handleAnswer(false)}
-              className="h-16 border-emerald-500/30 hover:bg-emerald-500/10 hover:border-emerald-500"
-            >
-              <div className="flex flex-col items-center gap-1">
-                <CheckCircle className="w-5 h-5 text-emerald-500" />
-                <span className="text-sm font-medium">It&apos;s Safe</span>
-              </div>
-            </Button>
+          <div className="flex flex-col gap-3">
+             <div className="flex items-center justify-between px-2">
+                <span className="text-xs font-medium text-muted-foreground">
+                  Found: <span className="text-emerald-600 font-bold">{currentState.correctlyFound}</span> / {totalRedFlags}
+                </span>
+                <span className="text-xs font-medium text-muted-foreground">
+                  Incorrect: <span className="text-destructive font-bold">{currentState.incorrectlyClicked}</span>
+                </span>
+             </div>
+             <Button onClick={handleDone} className="h-14 rounded-2xl font-bold text-lg shadow-xl shadow-primary/20">
+                Confirm Selections
+             </Button>
           </div>
         )}
 
         {currentState.answered && (
-          <Card className={`border-2 ${currentState.isCorrect ? 'border-emerald-500 bg-emerald-500/5' : 'border-destructive bg-destructive/5'}`}>
-            <CardContent className="p-4 space-y-2">
-              <div className="flex items-center gap-2">
-                {currentState.isCorrect ? (
-                  <><CheckCircle className="w-5 h-5 text-emerald-500" /><span className="font-semibold text-emerald-600">Correct!</span></>
-                ) : (
-                  <><XCircle className="w-5 h-5 text-destructive" /><span className="font-semibold text-destructive">Incorrect</span></>
-                )}
-                <span className="ml-auto text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
-                  This was {isScam ? 'a scam' : 'safe'}
-                </span>
-              </div>
-              <p className="text-sm text-muted-foreground">
-                {isScam
-                  ? `"${currentChallenge.title}" — This message contains scam patterns. Always verify through official channels.`
-                  : `"${currentChallenge.title}" — This appears to be a legitimate message with no major red flags.`
-                }
-              </p>
-            </CardContent>
-          </Card>
+           <Card className="border-border/40 bg-muted/10">
+              <CardContent className="p-4">
+                <h4 className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-2">Expert Feedback</h4>
+                <p className="text-sm leading-relaxed text-muted-foreground italic">
+                  {totalRedFlags > 0 
+                    ? `Look for: ${analysis?.signals?.map((s: any) => `"${s.phrase}"`).join(', ')}. These indicate ${analysis?.signals?.map((s: any) => s.category.toLowerCase()).join(' and ')}.`
+                    : "This message follows standard legitimate patterns. No suspicious urgency or fake links were found."
+                  }
+                </p>
+              </CardContent>
+           </Card>
         )}
 
-        {currentState.skipped && (
-          <Card className="border-2 border-muted bg-muted/30">
-            <CardContent className="p-4">
-              <p className="text-sm text-muted-foreground">
-                Skipped. This was <span className="font-semibold text-foreground">{isScam ? 'a scam' : 'safe'}</span>.
-              </p>
-            </CardContent>
-          </Card>
-        )}
-
-        <div className="flex flex-col gap-2">
+        <div className="flex flex-col gap-2 mt-auto">
           {(currentState.answered || currentState.skipped) && (
-            <Button onClick={handleNext} className="w-full gap-2">
-              {currentIndex + 1 >= TOTAL_QUESTIONS ? 'See Results' : 'Next Question'}
+            <Button onClick={handleNext} className="w-full h-14 rounded-2xl gap-2 font-bold shadow-lg">
+              {currentIndex + 1 >= TOTAL_QUESTIONS ? 'See Final Results' : 'Next Question'}
               <ArrowRight className="w-4 h-4" />
             </Button>
           )}
@@ -369,9 +434,9 @@ export function MobileChallengeView({ onNavigate, user }: MobileChallengeProps) 
           {!currentState.answered && !currentState.skipped && (
             <button
               onClick={handleSkip}
-              className="w-full text-center text-sm text-muted-foreground hover:text-foreground transition-colors py-2"
+              className="w-full text-center text-sm text-muted-foreground hover:text-foreground transition-colors py-2 font-medium"
             >
-              Skip Scam Challenge
+              Skip this challenge
             </button>
           )}
         </div>

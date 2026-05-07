@@ -21,6 +21,7 @@ export interface TextSegment {
   type: HighlightType
   signalId?: string
   isRedFlag: boolean
+  isDistractor?: boolean
 }
 
 export interface PercentageBreakdown {

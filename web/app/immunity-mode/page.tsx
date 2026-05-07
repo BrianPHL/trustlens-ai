@@ -29,14 +29,15 @@ const hints = [
 
 export default function ImmunityModePage() {
   const router = useRouter()
+export default function ImmunityModePage() {
+  const router = useRouter()
   const [currentIndex, setCurrentIndex] = useState(0)
-  const [challenges, setChallenges] = useState<AnalysisResult[]>([])
-  const [allSelections, setAllSelections] = useState<string[][]>([])
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
-
+  const [challenges, setChallenges] = useState<any[]>([])
+  const [score, setScore] = useState(0)
   const [loading, setLoading] = useState(true)
   const [user, setUser] = useState<any>(null)
   const [isGuest, setIsGuest] = useState(false)
+  const [states, setStates] = useState<any[]>([])
 
   useEffect(() => {
     const init = async () => {
@@ -46,13 +47,48 @@ export default function ImmunityModePage() {
       setUser(session?.user ?? null)
       setIsGuest(!session?.user)
 
-      const generated: AnalysisResult[] = []
+      const generated: any[] = []
+      const initialStates: any[] = []
+
       for (let i = 0; i < TOTAL_QUESTIONS; i++) {
         const randomChallenge = getRandomChallenge()
-        const analysis = analyzeMessage(randomChallenge.message)
-        generated.push(analysis)
+        const res = analyzeMessage(randomChallenge.message)
+        
+        // Inject distractors
+        const newSegments = [...res.segments]
+        let distractorCount = 0
+        for (let j = 0; j < newSegments.length && distractorCount < 2; j++) {
+          if (!newSegments[j].isRedFlag && newSegments[j].text.length > 25) {
+            const words = newSegments[j].text.trim().split(/\s+/)
+            if (words.length > 6) {
+              const start = Math.floor(Math.random() * (words.length - 3))
+              const distractorText = words.slice(start, start + 2).join(' ')
+              const before = words.slice(0, start).join(' ')
+              const after = words.slice(start + 2).join(' ')
+              
+              const injected: any[] = []
+              if (before) injected.push({ text: before + ' ', type: 'normal', isRedFlag: false })
+              injected.push({ text: distractorText, type: 'normal', isRedFlag: false, isDistractor: true })
+              if (after) injected.push({ text: ' ' + after, type: 'normal', isRedFlag: false })
+              
+              newSegments.splice(j, 1, ...injected)
+              distractorCount++
+              j += injected.length - 1
+            }
+          }
+        }
+        
+        generated.push({ ...res, segments: newSegments })
+        initialStates.push({
+          answered: false,
+          selectedIndices: new Set(),
+          correctlyFound: 0,
+          incorrectlyClicked: 0,
+          isCorrect: null
+        })
       }
       setChallenges(generated)
+      setStates(initialStates)
       setLoading(false)
     }
     init()
@@ -68,20 +104,30 @@ export default function ImmunityModePage() {
   }
 
   const challenge = challenges[currentIndex] ?? null
-  const segments = challenge?.segments || []
-  const signals = challenge?.signals || []
+  const currentState = states[currentIndex]
+  const totalRedFlags = challenge?.segments?.filter((s: any) => s.isRedFlag).length || 0
 
-  const redFlagSignalIds = new Set(
-    segments.filter(s => s.isRedFlag && s.signalId).map(s => s.signalId!)
-  )
+  const handleSegmentClick = (index: number) => {
+    if (currentState.answered) return
+    
+    const segment = challenge.segments[index]
+    if (!segment.isRedFlag && !segment.isDistractor) return
+    if (currentState.selectedIndices.has(index)) return
 
-  const handleSegmentClick = (signalId: string) => {
-    setSelectedIds(prev => {
-      const next = new Set(prev)
-      if (next.has(signalId)) next.delete(signalId)
-      else next.add(signalId)
-      return next
-    })
+    const isCorrect = segment.isRedFlag
+    
+    setStates(prev => prev.map((s, i) => {
+      if (i !== currentIndex) return s
+      const newSelected = new Set(s.selectedIndices)
+      newSelected.add(index)
+      
+      return { 
+        ...s, 
+        selectedIndices: newSelected, 
+        correctlyFound: isCorrect ? s.correctlyFound + 1 : s.correctlyFound,
+        incorrectlyClicked: !isCorrect ? s.incorrectlyClicked + 1 : s.incorrectlyClicked
+      }
+    }))
   }
 
   const handleExit = () => {
@@ -104,20 +150,37 @@ export default function ImmunityModePage() {
     })
   }
 
-  const handleSkipQuestion = () => handleNext()
-
-  const handleNext = () => {
-    const updatedSelections = [...allSelections, [...selectedIds]]
+  const handleSkipQuestion = () => {
     if (currentIndex < TOTAL_QUESTIONS - 1) {
-      setAllSelections(updatedSelections)
-      setSelectedIds(new Set())
       setCurrentIndex(prev => prev + 1)
     } else {
+      handleNext()
+    }
+  }
+
+  const handleNext = () => {
+    if (!currentState.answered) {
+      const isCorrect = (totalRedFlags === 0 && currentState.incorrectlyClicked === 0) || 
+                        (totalRedFlags > 0 && currentState.correctlyFound > 0 && currentState.incorrectlyClicked === 0)
+      
+      if (isCorrect) setScore(prev => prev + 1)
+      
+      setStates(prev => prev.map((s, i) => 
+        i === currentIndex ? { ...s, answered: true, isCorrect } : s
+      ))
+      return
+    }
+
+    if (currentIndex < TOTAL_QUESTIONS - 1) {
+      setCurrentIndex(prev => prev+1)
+    } else {
       if (typeof window !== 'undefined') {
-        sessionStorage.setItem('trustlens-all-selections', JSON.stringify(updatedSelections))
         sessionStorage.setItem('trustlens-challenges', JSON.stringify(challenges))
-        sessionStorage.setItem('trustlens-selected', JSON.stringify([...selectedIds]))
-        sessionStorage.setItem('trustlens-challenge', JSON.stringify(challenge))
+        sessionStorage.setItem('trustlens-immunity-results', JSON.stringify({
+          score: score,
+          total: TOTAL_QUESTIONS,
+          states: states
+        }))
       }
       router.push('/immunity-reveal')
     }
@@ -125,14 +188,10 @@ export default function ImmunityModePage() {
 
   const isLastQuestion = currentIndex === TOTAL_QUESTIONS - 1
   const progress = (currentIndex / TOTAL_QUESTIONS) * 100
-  const flagProgress = redFlagSignalIds.size > 0 ? (selectedIds.size / redFlagSignalIds.size) * 100 : 0
+  const flagProgress = totalRedFlags > 0 ? (currentState.correctlyFound / totalRedFlags) * 100 : 0
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-
-      {/* Header */}
-
-
       <main className="max-w-[1200px] mx-auto px-4 md:px-6 py-8 md:py-12 space-y-8 relative">
         
         {isGuest && (
@@ -166,9 +225,7 @@ export default function ImmunityModePage() {
         )}
 
         <div className={`space-y-8 transition-all duration-700 ${isGuest ? 'opacity-40 blur-md select-none pointer-events-none grayscale-[0.2]' : ''}`}>
-
-
-        {/* Hero Progress Banner */}
+        
         <section className="relative rounded-2xl overflow-hidden border border-primary/20 bg-gradient-to-br from-primary via-primary/90 to-indigo-600 p-6 md:p-8 text-white shadow-xl shadow-primary/20">
           <div className="absolute -right-12 -top-12 w-52 h-52 bg-white/10 rounded-full blur-3xl pointer-events-none" />
           <div className="absolute left-1/2 bottom-0 w-40 h-24 bg-white/5 rounded-full blur-2xl pointer-events-none" />
@@ -182,12 +239,16 @@ export default function ImmunityModePage() {
                 <h1 className="text-xl md:text-2xl font-extrabold tracking-tight leading-tight">
                   Scam Immunity Mode
                 </h1>
-                <p className="text-white/70 text-sm">Flag suspicious signals to build your score</p>
+                <p className="text-white/70 text-sm">Identify all scam signals to build your immunity score</p>
               </div>
+            </div>
+            <div className="ml-auto flex gap-2">
+               {states.map((s, i) => (
+                 <div key={i} className={`w-2 h-2 rounded-full ${i === currentIndex ? 'bg-white scale-125' : s.answered ? (s.isCorrect ? 'bg-emerald-400' : 'bg-red-400') : 'bg-white/30'}`} />
+               ))}
             </div>
           </div>
 
-          {/* Progress bar only — dots removed */}
           <div className="relative z-10">
             <div className="flex justify-between text-xs text-white/60 mb-2">
               <span className="font-semibold text-white/80">
@@ -204,118 +265,96 @@ export default function ImmunityModePage() {
           </div>
         </section>
 
-        {/* Main Grid */}
         <div className="grid lg:grid-cols-[1fr_300px] gap-8 items-start">
-
-          {/* Left: Challenge */}
           <div className="space-y-5">
-
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <AlertTriangle className="w-4 h-4 text-amber-500" />
                 <h2 className="text-sm font-bold text-muted-foreground uppercase tracking-widest">
-                  Tap Suspicious Phrases
+                  Flag all Red Flags
                 </h2>
               </div>
-              <button
-                onClick={handleSkipQuestion}
-                className="md:hidden flex items-center gap-1 text-xs font-semibold text-muted-foreground hover:text-foreground border border-border/60 rounded-lg px-2.5 py-1.5 transition-colors"
-              >
-                <Forward className="w-3 h-3" /> Skip
-              </button>
             </div>
 
-            {/* Message card */}
             <div className="rounded-2xl border border-border/60 bg-card shadow-sm overflow-hidden">
               <div className="flex items-center gap-2 px-4 py-3 border-b border-border/40 bg-muted/30">
                 <div className="w-2 h-2 rounded-full bg-red-400" />
                 <div className="w-2 h-2 rounded-full bg-amber-400" />
                 <div className="w-2 h-2 rounded-full bg-emerald-400" />
-                <span className="ml-2 text-xs text-muted-foreground font-medium">Suspicious Message</span>
-                <div className="ml-auto flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-100 dark:bg-red-900/30 border border-red-200 dark:border-red-800/50">
-                  <div className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
-                  <span className="text-[10px] font-bold text-red-600 dark:text-red-400 uppercase tracking-wide">Unverified</span>
-                </div>
+                <span className="ml-2 text-xs text-muted-foreground font-medium">{challenge?.platform || 'Message'} Analysis</span>
               </div>
 
-              <div className="p-5 md:p-6">
-                {challenge ? (
-                  <HighlightedText
-                    segments={segments}
-                    interactive
-                    selectedIds={selectedIds}
-                    onSegmentClick={handleSegmentClick}
-                  />
-                ) : (
-                  <div className="space-y-3">
-                    <div className="h-4 bg-muted/60 rounded-full w-full animate-pulse" />
-                    <div className="h-4 bg-muted/60 rounded-full w-5/6 animate-pulse" />
-                    <div className="h-4 bg-muted/60 rounded-full w-4/6 animate-pulse" />
-                  </div>
-                )}
-              </div>
-            </div>
+              <div className="p-6 text-lg leading-relaxed">
+                {challenge?.segments.map((segment: any, idx: number) => {
+                  const isClickable = segment.isRedFlag || segment.isDistractor
+                  const isSelected = currentState.selectedIndices.has(idx)
+                  
+                  let className = "transition-all duration-200 rounded px-1 "
+                  let style = {}
 
-            <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
-              <Info className="w-3.5 h-3.5 shrink-0" />
-              Tap or click any phrase in the message above to flag it as suspicious.
-            </p>
+                  if (isSelected || currentState.answered) {
+                    if (segment.isRedFlag) {
+                      className += "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 border-b-2 border-emerald-500 font-medium "
+                    } else if (segment.isDistractor) {
+                      className += "bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 border-b-2 border-red-500 font-medium "
+                    }
+                  } else if (isClickable) {
+                    className += "cursor-pointer hover:bg-primary/5 border-b border-dashed border-primary/30 "
+                  }
 
-            {/* Selected tags */}
-            {selectedIds.size > 0 && (
-              <div className="flex flex-wrap gap-2">
-                {[...selectedIds].map(id => {
-                  const signal = signals.find(s => s.id === id)
-                  if (!signal) return null
-                  const IconComponent = (LucideIcons as any)[signal.icon] || AlertTriangle
                   return (
                     <span
-                      key={id}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-primary/10 text-primary rounded-full text-xs font-semibold border border-primary/20 animate-in fade-in zoom-in-95 duration-150"
+                      key={idx}
+                      onClick={() => handleSegmentClick(idx)}
+                      className={className}
                     >
-                      <IconComponent className="w-3.5 h-3.5" />
-                      {signal.phrase}
-                      <button
-                        onClick={() => handleSegmentClick(id)}
-                        className="ml-1 w-4 h-4 rounded-full bg-primary/20 hover:bg-primary/30 flex items-center justify-center text-primary font-bold transition-colors"
-                      >
-                        ×
-                      </button>
+                      {segment.text}
                     </span>
                   )
                 })}
               </div>
-            )}
-
-            {/* CTA */}
-            <Button
-              onClick={handleNext}
-              size="lg"
-              className="w-full h-14 font-bold rounded-2xl shadow-lg shadow-primary/25 hover:shadow-primary/35 transition-shadow text-base gap-2"
-            >
-              {isLastQuestion ? (
-                <><Zap className="w-4 h-4" /> Reveal Results</>
-              ) : (
-                <>Next Question <ChevronRight className="w-4 h-4" /></>
+              
+              {currentState.answered && (
+                <div className={`mx-6 mb-6 p-4 rounded-xl flex items-start gap-3 ${currentState.isCorrect ? 'bg-emerald-50 dark:bg-emerald-900/10 border border-emerald-200' : 'bg-red-50 dark:bg-red-900/10 border border-red-200'}`}>
+                  {currentState.isCorrect ? <Zap className="w-5 h-5 text-emerald-500 mt-0.5" /> : <AlertTriangle className="w-5 h-5 text-red-500 mt-0.5" />}
+                  <div>
+                    <p className={`font-bold text-sm ${currentState.isCorrect ? 'text-emerald-700' : 'text-red-700'}`}>
+                      {currentState.isCorrect ? 'Excellent Analysis!' : 'Analysis Incomplete'}
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {totalRedFlags > 0 
+                        ? `This message contained ${totalRedFlags} red flags related to ${challenge.signals.map((s: any) => s.category.toLowerCase()).join(' and ')}.`
+                        : "Correct! This was a safe message with no scam indicators."
+                      }
+                    </p>
+                  </div>
+                </div>
               )}
-            </Button>
+            </div>
+
+            <div className="flex gap-4">
+              <Button
+                onClick={handleNext}
+                size="lg"
+                className="flex-1 h-14 font-bold rounded-2xl shadow-lg shadow-primary/25 hover:shadow-primary/35 transition-shadow text-base gap-2"
+              >
+                {!currentState.answered ? 'Confirm Selections' : (isLastQuestion ? 'View Final Report' : 'Next Challenge')}
+                <ChevronRight className="w-4 h-4" />
+              </Button>
+            </div>
           </div>
 
-          {/* Sidebar */}
           <aside className="space-y-5 lg:sticky lg:top-24">
-
-            {/* Live Progress */}
             <Card className="border-border/50 overflow-hidden">
               <div className="h-1 w-full bg-gradient-to-r from-primary via-primary/70 to-primary/30" />
               <CardContent className="p-5 space-y-5">
                 <div className="flex items-center justify-between">
                   <h3 className="font-bold text-sm">Live Progress</h3>
                   <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-                    Q{currentIndex + 1}/{TOTAL_QUESTIONS}
+                    Score: {score}
                   </span>
                 </div>
 
-                {/* Score ring */}
                 <div className="flex items-center gap-4">
                   <div className="relative w-16 h-16 shrink-0">
                     <svg className="w-full h-full -rotate-90" viewBox="0 0 64 64">
@@ -330,79 +369,55 @@ export default function ImmunityModePage() {
                       />
                     </svg>
                     <span className="absolute inset-0 flex items-center justify-center text-sm font-bold">
-                      {selectedIds.size}
-                      <span className="text-muted-foreground text-xs">/{redFlagSignalIds.size > 0 ? redFlagSignalIds.size : '?'}</span>
+                      {currentState.correctlyFound}
+                      <span className="text-muted-foreground text-xs">/{totalRedFlags}</span>
                     </span>
                   </div>
                   <div>
-                    <p className="text-xs text-muted-foreground">Red flags found</p>
-                    <p className="font-bold text-lg leading-tight">{selectedIds.size} flagged</p>
-                    <p className="text-xs text-muted-foreground">
-                      {redFlagSignalIds.size > 0 ? `${redFlagSignalIds.size} total signals` : 'Keep scanning'}
+                    <p className="text-xs text-muted-foreground">Flags Found</p>
+                    <p className="font-bold text-lg leading-tight">{currentState.correctlyFound} caught</p>
+                    <p className="text-xs text-red-500 font-medium">
+                      {currentState.incorrectlyClicked} false alarms
                     </p>
                   </div>
                 </div>
 
-                <div>
-                  <div className="h-1.5 bg-muted rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-gradient-to-r from-primary to-primary/70 rounded-full transition-all duration-700"
-                      style={{ width: `${flagProgress}%` }}
-                    />
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-1">{Math.round(flagProgress)}% of signals found</p>
-                </div>
-
-                {/* Options */}
                 <div className="pt-3 border-t border-border/60 space-y-2">
                   <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2">Options</p>
                   <button
                     onClick={handleSkipQuestion}
                     className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-muted-foreground hover:text-foreground hover:bg-muted/50 border border-border/40 transition-colors"
                   >
-                    <Forward className="w-4 h-4" /> Skip Question
+                    <Forward className="w-4 h-4" /> Skip Challenge
                   </button>
                   <button
                     onClick={handleExit}
                     className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 border border-red-200 dark:border-red-900/50 transition-colors"
                   >
-                    <XCircle className="w-4 h-4" /> Exit Challenge
+                    <XCircle className="w-4 h-4" /> Exit Mode
                   </button>
                 </div>
               </CardContent>
             </Card>
 
-            {/* Security Hints */}
             <Card className="border-border/50">
               <CardContent className="p-5">
                 <div className="flex items-center gap-2 mb-4">
                   <div className="w-6 h-6 rounded-md bg-amber-500/15 flex items-center justify-center">
                     <AlertTriangle className="w-3.5 h-3.5 text-amber-500" />
                   </div>
-                  <h3 className="font-bold text-sm">Security Hints</h3>
+                  <h3 className="font-bold text-sm">Immunity Tips</h3>
                 </div>
                 <ul className="space-y-2.5">
-                  {hints.map((h, i) => (
-                    <li key={i} className="flex items-start gap-2.5 text-sm text-muted-foreground">
-                      <div className="w-1.5 h-1.5 rounded-full bg-primary mt-2 shrink-0" />
+                  {hints.slice(0, 4).map((h, i) => (
+                    <li key={i} className="flex items-start gap-2.5 text-xs text-muted-foreground">
+                      <div className="w-1 h-1 rounded-full bg-primary mt-1.5 shrink-0" />
                       {h}
                     </li>
                   ))}
                 </ul>
               </CardContent>
             </Card>
-
-            {/* Protection badge */}
-            <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-primary/15 flex items-center justify-center shrink-0">
-                <Shield className="w-5 h-5 text-primary" />
-              </div>
-              <div>
-                <p className="text-sm font-semibold">Training Mode</p>
-                <p className="text-xs text-muted-foreground">Building your immunity score</p>
-              </div>
-              <div className="ml-auto w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
-            </div>
           </aside>
         </div>
         </div>
