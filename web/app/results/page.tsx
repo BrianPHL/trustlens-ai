@@ -28,7 +28,7 @@ import {
 } from '@/lib/scam-analyzer'
 import { createClient } from '@/lib/supabase/client'
 
-function mapExtensionAnalysis(text: string, extAnalysis: any): AnalysisResult {
+function mapExtensionAnalysis(text: string, extAnalysis: any, source?: string): AnalysisResult {
   const signals = (extAnalysis.matches || []).map((m: any) => {
     let icon = 'ShieldAlert';
     const cat = (m.category || '').toLowerCase();
@@ -60,9 +60,26 @@ function mapExtensionAnalysis(text: string, extAnalysis: any): AnalysisResult {
       .sort((a: any, b: any) => a.start - b.start);
 
     let cursor = 0;
-    for (const pp of phrasePositions) {
+    const isPageScan = source === 'page';
+    const CONTEXT_LEN = 60;
+
+    for (let i = 0; i < phrasePositions.length; i++) {
+      const pp = phrasePositions[i];
       if (pp.start > cursor) {
-        segments.push({ text: text.substring(cursor, pp.start), type: 'normal', isRedFlag: false });
+        let normalText = text.substring(cursor, pp.start);
+        
+        if (isPageScan) {
+          if (i === 0) {
+            if (normalText.length > CONTEXT_LEN) {
+              normalText = "...\n" + normalText.substring(normalText.length - CONTEXT_LEN);
+            }
+          } else {
+            if (normalText.length > CONTEXT_LEN * 2 + 10) {
+              normalText = normalText.substring(0, CONTEXT_LEN) + "\n\n... [content hidden] ...\n\n" + normalText.substring(normalText.length - CONTEXT_LEN);
+            }
+          }
+        }
+        segments.push({ text: normalText, type: 'normal', isRedFlag: false });
       }
       if (pp.start >= cursor) {
         const segmentText = text.substring(pp.start, pp.end);
@@ -78,10 +95,18 @@ function mapExtensionAnalysis(text: string, extAnalysis: any): AnalysisResult {
       }
     }
     if (cursor < text.length) {
-      segments.push({ text: text.substring(cursor), type: 'normal', isRedFlag: false });
+      let normalText = text.substring(cursor);
+      if (isPageScan && normalText.length > CONTEXT_LEN) {
+        normalText = normalText.substring(0, CONTEXT_LEN) + "\n...";
+      }
+      segments.push({ text: normalText, type: 'normal', isRedFlag: false });
     }
   } else {
-    segments.push({ text, type: 'normal', isRedFlag: false });
+    if (source === 'page' && text.length > 300) {
+      segments.push({ text: text.substring(0, 300) + "\n\n... [page content truncated]", type: 'normal', isRedFlag: false });
+    } else {
+      segments.push({ text, type: 'normal', isRedFlag: false });
+    }
   }
 
   let scamPct = 0;
@@ -131,12 +156,13 @@ export default function ResultsPage() {
       let initialMessage = ''
       let initialGuest = false
       let precomputedAnalysis: any = null
+      let analysisSource = 'unknown'
 
       const urlParams = new URLSearchParams(window.location.search)
       const payloadParam = urlParams.get('payload')
       const transferId = urlParams.get('transferId')
 
-      const applyAnalysis = (msg: string, isGuest: boolean, extAnalysis: any) => {
+      const applyAnalysis = (msg: string, isGuest: boolean, extAnalysis: any, src: string) => {
         setIsGuest(isGuest)
         if (msg) {
           setOriginalMessage(msg)
@@ -145,7 +171,7 @@ export default function ResultsPage() {
             analysis = SAMPLE_ANALYSIS
             setResult(SAMPLE_ANALYSIS)
           } else if (extAnalysis) {
-            analysis = mapExtensionAnalysis(msg, extAnalysis)
+            analysis = mapExtensionAnalysis(msg, extAnalysis, src)
             setResult(analysis)
           } else {
             analysis = analyzeMessage(msg)
@@ -186,10 +212,11 @@ export default function ResultsPage() {
           }
           
           initialGuest = parsedPayload.isGuestView || false
+          analysisSource = parsedPayload.source || 'unknown'
           
           // Clean up the URL
           window.history.replaceState({}, '', window.location.pathname)
-          applyAnalysis(initialMessage, initialGuest, precomputedAnalysis);
+          applyAnalysis(initialMessage, initialGuest, precomputedAnalysis, analysisSource);
         } catch (e) {
           console.error("Error parsing URL payload", e)
         }
@@ -205,8 +232,9 @@ export default function ResultsPage() {
               precomputedAnalysis = parsedPayload.analysis;
             }
             initialGuest = parsedPayload.isGuestView || false;
+            analysisSource = parsedPayload.source || 'unknown';
             window.history.replaceState({}, '', window.location.pathname);
-            applyAnalysis(initialMessage, initialGuest, precomputedAnalysis);
+            applyAnalysis(initialMessage, initialGuest, precomputedAnalysis, analysisSource);
           }
         };
         window.addEventListener('message', handleMessage);
@@ -229,10 +257,11 @@ export default function ResultsPage() {
                     if (parsed.analysis) {
                       precomputedAnalysis = parsed.analysis;
                     }
+                    analysisSource = parsed.source || 'unknown';
                   } catch (e) {}
                }
                window.history.replaceState({}, '', window.location.pathname);
-               applyAnalysis(initialMessage, initialGuest, precomputedAnalysis);
+               applyAnalysis(initialMessage, initialGuest, precomputedAnalysis, analysisSource);
             }
           }
         }, 300);
@@ -252,11 +281,12 @@ export default function ResultsPage() {
             if (parsed.analysis) {
               precomputedAnalysis = parsed.analysis
             }
+            analysisSource = parsed.source || 'unknown'
           } catch (e) {
             console.error("Error parsing analysis context", e)
           }
         }
-        applyAnalysis(initialMessage, initialGuest, precomputedAnalysis);
+        applyAnalysis(initialMessage, initialGuest, precomputedAnalysis, analysisSource);
       }
     }
   }, [])

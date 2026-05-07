@@ -22,7 +22,7 @@ export function HighlightedText({
   onSegmentClick 
 }: HighlightedTextProps) {
   return (
-    <div className="p-5 bg-muted/40 rounded-xl text-sm leading-relaxed border border-border/50">
+    <div className="p-5 bg-muted/40 rounded-xl text-sm leading-relaxed border border-border/50 whitespace-pre-wrap">
       {segments.map((segment, index) => {
         if (!segment.isRedFlag || segment.type === 'normal') {
           // In reveal mode, gray out normal text slightly
